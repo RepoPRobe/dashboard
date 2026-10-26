@@ -42,11 +42,11 @@ export const authOptions: NextAuthOptions = {
                         token.repoProbeAuthToken = parsed.token;
                         delete token.error;
                     } else {
-                        token.error = 'RepoPRobeLoginFailed';
+                        throw new Error('RepoPRobeLoginFailed');
                     }
                 } catch (error) {
                     console.error('[/github-login] Error:', error);
-                    token.error = 'RepoPRobeLoginFailed';
+                    throw new Error('RepoPRobeLoginFailed');
                 }
             }
 
