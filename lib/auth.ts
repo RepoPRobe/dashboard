@@ -19,6 +19,7 @@ export const authOptions: NextAuthOptions = {
                 try {
                     const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/github-login`, {
                         method: 'POST',
+                        signal: AbortSignal.timeout(10_000),
                         headers: {
                             'Content-Type': 'application/json',
                         },
@@ -59,7 +60,6 @@ export const authOptions: NextAuthOptions = {
         async session({ session, token }) {
             session.repoProbeAuthToken = token.repoProbeAuthToken ?? '';
             session.error = token.error;
-            session.accessToken = token.accessToken?.toString() ?? '';
             session.user.githubId = token.githubId?.toString() ?? '';
             session.user.login = token.login ?? '';
             return session

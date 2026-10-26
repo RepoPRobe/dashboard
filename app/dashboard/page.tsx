@@ -2,13 +2,17 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react"
+import { GithubInstallationType } from "@/types";
+import toast from "react-hot-toast";
 
 export default function Dashboard() {
     const session = useSession();
-    const [installations, setInstallations] = useState<any[]>([]);
+    const [installations, setInstallations] = useState<GithubInstallationType[]>([]);
 
     useEffect(() => {
+        if(session.status === 'loading' || session.status === 'unauthenticated') return;
         const token = session.data?.repoProbeAuthToken;
+        setInstallations([]);
         if (!token) return;
         let cancelled = false;
 
@@ -23,6 +27,9 @@ export default function Dashboard() {
                 const parsed = await response.json();
                 if (!cancelled && parsed.success) {
                     setInstallations(parsed.installations);
+                } else {
+                    console.log('Unable to load installations:', parsed.error);
+                    toast.error(`Unable to load installations: ${parsed.error}`, { duration: 5000 });
                 }
             } catch (error) {
                 console.log('Unable to load installations:', error);
@@ -59,10 +66,10 @@ export default function Dashboard() {
                                 <li key={installation._id} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                                     <div className="space-y-5">
                                         <div className="flex items-center gap-4">
-                                            <img src={installation.ownedBy.avatarUrl} alt={`${installation.ownedBy.login}'s avatar`} className="h-12 w-12 rounded-full bg-slate-100" />
+                                            <img src={installation.ownedBy?.avatarUrl} alt={`${installation.ownedBy?.login ?? "Unknown"}'s avatar`} className="h-12 w-12 rounded-full bg-slate-100" />
                                             <div className="min-w-0 flex-1">
-                                                <a href={installation.ownedBy.githubUrl} target="_blank" rel="noreferrer" className="truncate font-semibold text-slate-900 hover:text-indigo-600">{installation.ownedBy.login}</a>
-                                                <p className="text-sm text-slate-500">{installation.ownedBy.userType} account</p>
+                                                <a href={installation.ownedBy?.githubUrl} target="_blank" rel="noreferrer" className="truncate font-semibold text-slate-900 hover:text-indigo-600">{installation.ownedBy?.login ?? "Unknown"}</a>
+                                                <p className="text-sm text-slate-500">{installation.ownedBy?.userType ?? "Unknown"} account</p>
                                             </div>
                                             <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                                                 {installation.repositorySelection === "selected" ? "Selected repos" : "All repos"}
@@ -70,9 +77,9 @@ export default function Dashboard() {
                                         </div>
 
                                         <dl className="flex justify-between border-t border-slate-100 pt-4 text-sm">
-                                            <div><dt className="text-slate-500">Installed by</dt><dd className="mt-1 font-medium"><a href={installation.installedBy.githubUrl} target="_blank" rel="noreferrer" className="hover:text-indigo-600">@{installation.installedBy.login}</a></dd></div>
-                                            <div><dt className="text-slate-500">Installed</dt><dd className="mt-1 font-medium">{new Date(installation.installedOn).toLocaleString()}</dd></div>
-                                            <div><dt className="text-slate-500">Last updated</dt><dd className="mt-1 font-medium">{new Date(installation.lastUpdatedAt).toLocaleString()}</dd></div>
+                                            <div><dt className="text-slate-500">Installed by</dt><dd className="mt-1 font-medium"><a href={installation.installedBy?.githubUrl} target="_blank" rel="noreferrer" className="hover:text-indigo-600">@{installation.installedBy?.login ?? "Unknown"}</a></dd></div>
+                                            <div><dt className="text-slate-500">Installed</dt><dd className="mt-1 font-medium">{installation.installedOn ? new Date(installation.installedOn).toLocaleString() : "Unknown"}</dd></div>
+                                            <div><dt className="text-slate-500">Last updated</dt><dd className="mt-1 font-medium">{installation.lastUpdatedAt ? new Date(installation.lastUpdatedAt).toLocaleString() : "Unknown"}</dd></div>
                                         </dl>
 
                                         <div className="flex items-center justify-between gap-3">

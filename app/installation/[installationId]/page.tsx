@@ -24,21 +24,38 @@ export default function Installation({ params }: { params: Promise<{ installatio
     const [trackedRepositories, setTrackedRepositories] = useState<TrackedRepository[]>([]);
 
     useEffect(() => {
-        (async () => {
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_SERVER_URL}/get-tracked-repositories?installationId=${encodeURIComponent(githubInstallationId)}`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${session.data?.repoProbeAuthToken}`,
-                    }
-                }
-            );
+        if (session.status === 'loading' || session.status === 'unauthenticated') return;
+        if (!githubInstallationId) return;
+        if (!session.data?.repoProbeAuthToken) return;
 
-            const parsed = await response.json();
-            if (parsed.success) {
-                setTrackedRepositories(parsed.trackedRepositories);
+        setTrackedRepositories([]);
+
+        let cancelled = false;
+        (async () => {
+            try {
+                const response = await fetch(
+                    `${process.env.NEXT_PUBLIC_SERVER_URL}/get-tracked-repositories?installationId=${encodeURIComponent(githubInstallationId)}`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${session.data?.repoProbeAuthToken}`,
+                        }
+                    }
+                );
+
+                const parsed = await response.json();
+                if (!cancelled && parsed.success) {
+                    setTrackedRepositories(parsed.trackedRepositories);
+                } else {
+                    console.log('Unable to load repositories:', parsed.error);
+                }
+            } catch (error) {
+                console.log('Unable to load repositories:', error);
             }
         })();
+
+        return () => {
+            cancelled = true;
+        };
     }, [githubInstallationId, session.data?.repoProbeAuthToken]);
 
     return (
@@ -88,13 +105,9 @@ export default function Installation({ params }: { params: Promise<{ installatio
                                                         >
                                                             {repo.name}
                                                         </a>
-                                                        <a
-                                                            className="truncate text-xs cursor-pointer text-slate-500 block font-semibold hover:text-indigo-600"
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                        >
+                                                        <div className="truncate text-xs text-slate-500 block font-semibold">
                                                             {repo.fullName}
-                                                        </a>
+                                                        </div>
                                                     </div>
                                                 </div>
 

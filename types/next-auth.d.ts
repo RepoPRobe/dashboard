@@ -4,7 +4,6 @@ import { JWT } from 'next-auth/jwt'
 declare module 'next-auth' {
     interface Session {
         repoProbeAuthToken: string;
-        accessToken: string
         error?: string
         user: {
             githubId: string

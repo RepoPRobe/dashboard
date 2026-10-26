@@ -76,6 +76,31 @@ type RepositoryData = {
     };
 };
 
+async function fetchRepositoryData(
+    installationId: string,
+    repositoryId: string,
+    token: string,
+): Promise<RepositoryData> {
+    const query = new URLSearchParams({ installationId, repositoryId });
+    const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URL}/get-repository?${query.toString()}`,
+        {
+            headers: { Authorization: `Bearer ${token}` },
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error("Unable to load repository details.");
+    }
+
+    const parsed = await response.json();
+    if (!parsed.success || !parsed.repository) {
+        throw new Error("Repository details were not returned.");
+    }
+
+    return parsed.repository;
+}
+
 export default function Repository({
     params,
 }: {
@@ -90,7 +115,38 @@ export default function Repository({
     const [conflictsData, setConflictsData] = useState([]);
     const [isConflictDialogOpen, setIsConflictDialogOpen] = useState<boolean>(false);
 
+    const refreshAfterPRMutation = async () => {
+        try {
+            const token = session.data?.repoProbeAuthToken;
+            if (!token) {
+                throw new Error("Authentication token is unavailable.");
+            }
+
+            const repository = await fetchRepositoryData(installationId, repositoryId, token);
+            setRepositoryData(repository);
+        } catch (error) {
+            console.error("Unable to refresh repository data after pull request action:", error);
+            toast.error("Action completed, but repository data could not be refreshed.");
+        }
+    };
+
+    const updatePullRequest = (prNumber: number, updates: Partial<PullRequestType>) => {
+        setRepositoryData((current) => current ? {
+            ...current,
+            stats: {
+                ...current.stats,
+                totalPRsInRepoPRobe: current.stats.totalPRsInRepoPRobe.map((pullRequest) =>
+                    pullRequest.prNumber === prNumber ? { ...pullRequest, ...updates } : pullRequest
+                ),
+            },
+        } : current);
+        setSelectedPullRequest((current) =>
+            current?.prNumber === prNumber ? { ...current, ...updates } : current
+        );
+    };
+
     useEffect(() => {
+        if (session.status === 'loading' || session.status === 'unauthenticated') return;
         const token = session.data?.repoProbeAuthToken;
         if (!token) return;
 
@@ -155,6 +211,10 @@ export default function Repository({
             const parsed = await response.json();
             if (parsed.success) {
                 toast.success(parsed.message);
+                await refreshAfterPRMutation();
+                if (selectedPullRequest) {
+                    updatePullRequest(selectedPullRequest.prNumber, { isTracked: true });
+                }
             } else {
                 toast.error('Unable to track the pullrequest');
             }
@@ -186,6 +246,10 @@ export default function Repository({
             const parsed = await response.json();
             if (parsed.success) {
                 toast.success(parsed.message);
+                await refreshAfterPRMutation();
+                if (selectedPullRequest) {
+                    updatePullRequest(selectedPullRequest.prNumber, { isTracked: false });
+                }
             } else {
                 toast.error('Unable to untrack the pullrequest');
             }
@@ -217,6 +281,7 @@ export default function Repository({
             const parsed = await response.json();
             if (parsed.success) {
                 toast.success(parsed.message);
+                await refreshAfterPRMutation();
             } else {
                 toast.error('Unable to sync the pullrequest');
             }
@@ -248,6 +313,7 @@ export default function Repository({
             const parsed = await response.json();
             if (parsed.success) {
                 toast.success(parsed.message);
+                await refreshAfterPRMutation();
             } else {
                 toast.error('Unable to scan the pullrequest for conflicts');
             }
@@ -279,6 +345,7 @@ export default function Repository({
             const parsed = await response.json();
             if (parsed.success) {
                 toast.success(parsed.message);
+                await refreshAfterPRMutation();
             } else {
                 toast.error('Unable to retry processing the pullrequest');
             }
