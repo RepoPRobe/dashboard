@@ -21,14 +21,22 @@ type TrackedRepository = {
 export default function Installation({ params }: { params: Promise<{ installationId: string }> }) {
     const session = useSession();
     const { installationId: githubInstallationId } = use(params);
-    const [trackedRepositories, setTrackedRepositories] = useState<TrackedRepository[]>([]);
+    const [loadedRepositories, setLoadedRepositories] = useState<{
+        installationId: string;
+        token: string;
+        repositories: TrackedRepository[];
+    } | null>(null);
+    const token = session.data?.repoProbeAuthToken;
+    const trackedRepositories = session.status === 'authenticated' && token && loadedRepositories
+        && loadedRepositories.installationId === githubInstallationId && loadedRepositories.token === token
+        ? loadedRepositories.repositories
+        : [];
 
     useEffect(() => {
         if (session.status === 'loading' || session.status === 'unauthenticated') return;
         if (!githubInstallationId) return;
-        if (!session.data?.repoProbeAuthToken) return;
-
-        setTrackedRepositories([]);
+        const token = session.data?.repoProbeAuthToken;
+        if (!token) return;
 
         let cancelled = false;
         (async () => {
@@ -44,7 +52,11 @@ export default function Installation({ params }: { params: Promise<{ installatio
 
                 const parsed = await response.json();
                 if (!cancelled && parsed.success) {
-                    setTrackedRepositories(parsed.trackedRepositories);
+                    setLoadedRepositories({
+                        installationId: githubInstallationId,
+                        token,
+                        repositories: parsed.trackedRepositories,
+                    });
                 } else {
                     console.log('Unable to load repositories:', parsed.error);
                 }
@@ -56,7 +68,7 @@ export default function Installation({ params }: { params: Promise<{ installatio
         return () => {
             cancelled = true;
         };
-    }, [githubInstallationId, session.data?.repoProbeAuthToken]);
+    }, [githubInstallationId, session.status, session.data?.repoProbeAuthToken]);
 
     return (
         <div className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:px-10">

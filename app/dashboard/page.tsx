@@ -7,12 +7,18 @@ import toast from "react-hot-toast";
 
 export default function Dashboard() {
     const session = useSession();
-    const [installations, setInstallations] = useState<GithubInstallationType[]>([]);
+    const [loadedInstallations, setLoadedInstallations] = useState<{
+        token: string;
+        installations: GithubInstallationType[];
+    } | null>(null);
+    const token = session.data?.repoProbeAuthToken;
+    const installations = session.status === 'authenticated' && token && loadedInstallations && loadedInstallations.token === token
+        ? loadedInstallations.installations
+        : [];
 
     useEffect(() => {
         if(session.status === 'loading' || session.status === 'unauthenticated') return;
         const token = session.data?.repoProbeAuthToken;
-        setInstallations([]);
         if (!token) return;
         let cancelled = false;
 
@@ -26,7 +32,7 @@ export default function Dashboard() {
 
                 const parsed = await response.json();
                 if (!cancelled && parsed.success) {
-                    setInstallations(parsed.installations);
+                    setLoadedInstallations({ token, installations: parsed.installations });
                 } else {
                     console.log('Unable to load installations:', parsed.error);
                     toast.error(`Unable to load installations: ${parsed.error}`, { duration: 5000 });
@@ -38,7 +44,7 @@ export default function Dashboard() {
         return () => {
             cancelled = true;
         }
-    }, [session.data?.repoProbeAuthToken]);
+    }, [session.status, session.data?.repoProbeAuthToken]);
 
     return (
         <div className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:px-10">
