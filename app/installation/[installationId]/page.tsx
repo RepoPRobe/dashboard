@@ -57,7 +57,7 @@ export default function Installation({ params }: { params: Promise<{ installatio
                         token,
                         repositories: parsed.trackedRepositories,
                     });
-                } else {
+                } else if (!cancelled) {
                     console.log('Unable to load repositories:', parsed.error);
                 }
             } catch (error) {

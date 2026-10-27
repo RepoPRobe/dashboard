@@ -33,7 +33,7 @@ export default function Dashboard() {
                 const parsed = await response.json();
                 if (!cancelled && parsed.success) {
                     setLoadedInstallations({ token, installations: parsed.installations });
-                } else {
+                } else if(!cancelled) {
                     console.log('Unable to load installations:', parsed.error);
                     toast.error(`Unable to load installations: ${parsed.error}`, { duration: 5000 });
                 }
