@@ -1,6 +1,7 @@
 'use client'
 import { useSession } from "next-auth/react";
 import { use, useEffect, useState } from "react"
+import AppHeader from "@/components/AppHeader";
 
 type TrackedRepository = {
     _id: string;
@@ -71,11 +72,12 @@ export default function Installation({ params }: { params: Promise<{ installatio
     }, [githubInstallationId, session.status, session.data?.repoProbeAuthToken]);
 
     return (
-        <div className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:px-10">
-            <div className="mx-auto max-w-5xl">
+        <div className="min-h-screen bg-slate-50 text-slate-900">
+            <AppHeader installationId={githubInstallationId} />
+            <main className="px-6 py-8 sm:px-10">
+              <div className="mx-auto max-w-5xl">
                 <div className="mb-8">
-                    <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600">RepoProbe</p>
-                    <h1 className="mt-2 text-3xl font-bold tracking-tight">Installation Repositories</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Installation Repositories</h1>
                     <p className="mt-2 text-slate-600">Manage the GitHub repositories connected to this installation.</p>
                 </div>
 
@@ -117,9 +119,9 @@ export default function Installation({ params }: { params: Promise<{ installatio
                                                         >
                                                             {repo.name}
                                                         </a>
-                                                        <div className="truncate text-xs text-slate-500 block font-semibold">
-                                                            {repo.fullName}
-                                                        </div>
+                                                          <div className="truncate text-xs text-slate-500 block font-semibold">
+                                                              {repo.fullName}
+                                                          </div>
                                                     </div>
                                                 </div>
 
@@ -156,6 +158,7 @@ export default function Installation({ params }: { params: Promise<{ installatio
                     )}
                 </div>
             </div>
+            </main>
         </div>
     );
 }

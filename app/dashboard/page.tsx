@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react"
 import { GithubInstallationType } from "@/types";
 import toast from "react-hot-toast";
+import AppHeader from "@/components/AppHeader";
 
 export default function Dashboard() {
     const session = useSession();
@@ -47,11 +48,12 @@ export default function Dashboard() {
     }, [session.status, session.data?.repoProbeAuthToken]);
 
     return (
-        <div className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 sm:px-10">
-            <div className="mx-auto max-w-5xl">
+        <div className="min-h-screen bg-slate-50 text-slate-900">
+            <AppHeader />
+            <main className="px-6 py-8 sm:px-10">
+              <div className="mx-auto max-w-5xl">
                 <div className="mb-8">
-                    <p className="text-sm font-semibold uppercase tracking-widest text-indigo-600">RepoProbe</p>
-                    <h1 className="mt-2 text-3xl font-bold tracking-tight">Dashboard</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
                     <p className="mt-2 text-slate-600">Manage the GitHub installations connected to your account.</p>
                 </div>
                 <div aria-labelledby="installations-heading">
@@ -103,6 +105,7 @@ export default function Dashboard() {
                     )}
                 </div>
             </div>
+            </main>
         </div>
     )
 }
