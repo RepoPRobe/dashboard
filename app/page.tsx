@@ -1,10 +1,8 @@
 'use client'
-import LoginButton from "@/components/LoginButtons";
+import LandingPage from "@/components/LandingPage";
 
 export default function Home() {
   return (
-    <div>
-      <LoginButton />
-    </div>
+    <LandingPage />
   );
 }
