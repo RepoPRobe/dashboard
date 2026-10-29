@@ -1,6 +1,7 @@
 'use client'
 import { useSession } from "next-auth/react";
 import { use, useEffect, useState } from "react"
+import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 
 type TrackedRepository = {
@@ -111,14 +112,14 @@ export default function Installation({ params }: { params: Promise<{ installatio
                                                         {repo.name.slice(0, 2).toUpperCase()}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <a
+                                                        <Link
                                                             href={githubUrl}
                                                             target="_blank"
                                                             rel="noreferrer"
                                                             className="block truncate font-semibold text-slate-900 hover:text-indigo-600"
                                                         >
                                                             {repo.name}
-                                                        </a>
+                                                        </Link>
                                                           <div className="truncate text-xs text-slate-500 block font-semibold">
                                                               {repo.fullName}
                                                           </div>
@@ -141,12 +142,12 @@ export default function Installation({ params }: { params: Promise<{ installatio
                                                 <div>
                                                     <dt className="text-slate-500">Links</dt>
                                                     <dd className="mt-1 font-medium">
-                                                        <a
+                                                        <Link
                                                             href={`/installation/${githubInstallationId}/repository/${repo._id}`}
                                                             className="text-indigo-600 hover:text-indigo-800"
                                                         >
                                                             View
-                                                        </a>
+                                                        </Link>
                                                     </dd>
                                                 </div>
                                             </dl>

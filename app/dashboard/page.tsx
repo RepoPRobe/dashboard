@@ -76,7 +76,11 @@ export default function Dashboard() {
                                         <div className="flex items-center gap-4">
                                             <img src={installation.ownedBy?.avatarUrl} alt={`${installation.ownedBy?.login ?? "Unknown"}'s avatar`} className="h-12 w-12 rounded-full bg-slate-100" />
                                             <div className="min-w-0 flex-1">
-                                                <a href={installation.ownedBy?.githubUrl} target="_blank" rel="noreferrer" className="truncate font-semibold text-slate-900 hover:text-indigo-600">{installation.ownedBy?.login ?? "Unknown"}</a>
+                                                {installation.ownedBy?.githubUrl ? (
+                                                    <Link href={installation.ownedBy.githubUrl} target="_blank" rel="noreferrer" className="truncate font-semibold text-slate-900 hover:text-indigo-600">{installation.ownedBy.login ?? "Unknown"}</Link>
+                                                ) : (
+                                                    <span className="truncate font-semibold text-slate-900">{installation.ownedBy?.login ?? "Unknown"}</span>
+                                                )}
                                                 <p className="text-sm text-slate-500">{installation.ownedBy?.userType ?? "Unknown"} account</p>
                                             </div>
                                             <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
@@ -85,7 +89,7 @@ export default function Dashboard() {
                                         </div>
 
                                         <dl className="flex justify-between border-t border-slate-100 pt-4 text-sm">
-                                            <div><dt className="text-slate-500">Installed by</dt><dd className="mt-1 font-medium"><a href={installation.installedBy?.githubUrl} target="_blank" rel="noreferrer" className="hover:text-indigo-600">@{installation.installedBy?.login ?? "Unknown"}</a></dd></div>
+                                            <div><dt className="text-slate-500">Installed by</dt><dd className="mt-1 font-medium">{installation.installedBy?.githubUrl ? <Link href={installation.installedBy.githubUrl} target="_blank" rel="noreferrer" className="hover:text-indigo-600">@{installation.installedBy.login ?? "Unknown"}</Link> : `@${installation.installedBy?.login ?? "Unknown"}`}</dd></div>
                                             <div><dt className="text-slate-500">Installed</dt><dd className="mt-1 font-medium">{installation.installedOn ? new Date(installation.installedOn).toLocaleString() : "Unknown"}</dd></div>
                                             <div><dt className="text-slate-500">Last updated</dt><dd className="mt-1 font-medium">{installation.lastUpdatedAt ? new Date(installation.lastUpdatedAt).toLocaleString() : "Unknown"}</dd></div>
                                         </dl>
@@ -94,9 +98,9 @@ export default function Dashboard() {
                                             <Link href={`/installation/${installation._id}`} className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800">
                                                 View installation
                                             </Link>
-                                            <a href={installation.githubRedirect} target="_blank" rel="noreferrer" className="inline-flex text-sm font-semibold text-indigo-600 hover:text-indigo-800">
+                                            <Link href={installation.githubRedirect} target="_blank" rel="noreferrer" className="inline-flex text-sm font-semibold text-indigo-600 hover:text-indigo-800">
                                                 Manage on GitHub <span aria-hidden="true" className="ml-1"></span>
-                                            </a>
+                                            </Link>
                                         </div>
                                     </div>
                                 </li>

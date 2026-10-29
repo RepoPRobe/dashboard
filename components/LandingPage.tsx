@@ -21,10 +21,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-interface LandingPageProps {
-  onInstall?: () => void;
-}
-
 const features = [
   {
     icon: GitPullRequest,
@@ -96,9 +92,7 @@ const workflowSteps = [
   },
 ];
 
-export default function LandingPage({
-  onInstall,
-}: LandingPageProps) {
+export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { status } = useSession();
 
@@ -119,7 +113,7 @@ export default function LandingPage({
       {/* Navigation */}
       <header className="sticky top-0 z-30 border-b border-[#DCE4EF] bg-white/95 backdrop-blur">
         <nav className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 sm:px-8">
-          <a href="/" className="flex items-center gap-1.5">
+          <Link href="/" className="flex items-center gap-1.5">
             <Image
               src="/repoprobe-logo.png"
               alt=""
@@ -132,15 +126,15 @@ export default function LandingPage({
             <span className="text-xl font-semibold tracking-tight">
               Repo<span className="text-[#5145FF]">PRobe</span>
             </span>
-          </a>
+          </Link>
 
           <div className="hidden items-center gap-8 text-sm text-[#526581] md:flex">
-            <a href="#features" className="transition hover:text-[#5145FF]">
+            <Link href="#features" className="transition hover:text-[#5145FF]">
               Features
-            </a>
-            <a href="#workflow" className="transition hover:text-[#5145FF]">
+            </Link>
+            <Link href="#workflow" className="transition hover:text-[#5145FF]">
               How it works
-            </a>
+            </Link>
           </div>
 
           <div className="hidden items-center gap-3 md:flex">
@@ -175,21 +169,21 @@ export default function LandingPage({
 
         {mobileMenuOpen && (
           <div className="space-y-1 border-t border-[#DCE4EF] bg-white p-4 md:hidden">
-            <a
+            <Link
               href="#features"
               onClick={() => setMobileMenuOpen(false)}
               className="block rounded-lg px-3 py-3 text-sm text-[#344256] hover:bg-[#F1F4F9]"
             >
               Features
-            </a>
+            </Link>
 
-            <a
+            <Link
               href="#workflow"
               onClick={() => setMobileMenuOpen(false)}
               className="block rounded-lg px-3 py-3 text-sm text-[#344256] hover:bg-[#F1F4F9]"
             >
               How it works
-            </a>
+            </Link>
 
             {status === "authenticated" && (
               <Link
@@ -210,7 +204,6 @@ export default function LandingPage({
             <button
               onClick={() => {
                 setMobileMenuOpen(false);
-                onInstall?.();
               }}
               className={`${primaryButton} w-full`}
             >
@@ -252,9 +245,9 @@ export default function LandingPage({
                 <ArrowRight size={17} />
               </Link>
 
-              <a href="#workflow" className={secondaryButton}>
+              <Link href="#workflow" className={secondaryButton}>
                 See how it works
-              </a>
+              </Link>
             </div>
 
             <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-[#526581]">
@@ -499,11 +492,11 @@ export default function LandingPage({
               surprises slow your team down.
             </p>
 
-            <button onClick={onInstall} className={`${primaryButton} mt-8`}>
+            <Link href={GITHUB_APP_URL} className={`${primaryButton} mt-8`}>
               <GitBranch size={18} />
               Install RepoPRobe
               <ArrowRight size={17} />
-            </button>
+            </Link>
           </div>
         </div>
       </section>
@@ -511,7 +504,7 @@ export default function LandingPage({
       {/* Footer */}
       <footer className="border-t border-[#DCE4EF] bg-white px-5 py-7 sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <a href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <Image
               src="/repoprobe-logo.png"
               alt=""
@@ -523,7 +516,7 @@ export default function LandingPage({
             <span className="text-sm font-semibold text-[#111827]">
               Repo<span className="text-[#5145FF]">Probe</span>
             </span>
-          </a>
+          </Link>
 
           <p className="text-center text-xs text-[#71829B]">
             Make overlapping changes visible before they become a problem.
