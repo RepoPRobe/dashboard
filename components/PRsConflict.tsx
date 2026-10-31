@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, GitPullRequest } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, GitPullRequest } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import Collapsible from "./ui/collapsible";
 import { buildVirtualTable, LineContainingHunk } from "@/lib/conflicts";
@@ -66,12 +66,99 @@ export default function PRsConflicts({ conflicts }: PRsConflictType) {
         );
     }
 
+    const conflictsByPR: Record<string, ConflictType[]> = {};
+    conflicts.forEach((conflict) => {
+        if (!(conflict.prBId in conflictsByPR)) {
+            conflictsByPR[conflict.prBId] = [];
+        }
+        conflictsByPR[conflict.prBId].push(conflict);
+    });
+    const pullRequestGroups = Object.entries(conflictsByPR);
+
     return (
-        <div className="grid gap-3">
-            {conflicts.map((conflict) => (
-                <ConflictFile key={`${conflict.prAId}-${conflict.prBId}-${conflict.file}`} conflict={conflict} />
-            ))}
+        <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3 px-1">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    Conflicting pull requests
+                </h3>
+                <span className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-xs font-medium tabular-nums text-slate-600">
+                    {pullRequestGroups.length}
+                </span>
+            </div>
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm divide-y divide-slate-200">
+                {pullRequestGroups.map(([prBId, prConflicts]) => (
+                    <ConflictPullRequestGroup
+                        key={prBId}
+                        conflicts={prConflicts}
+                    />
+                ))}
+            </div>
         </div>
+    );
+}
+
+function ConflictPullRequestGroup({ conflicts }: { conflicts: ConflictType[] }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const pullRequest = conflicts[0].prB;
+
+    return (
+        <section
+            aria-label={`Conflicts for pull request #${pullRequest.prNumber}`}
+            className="min-w-0"
+        >
+            <header className={`flex min-w-0 items-center gap-3 px-3 py-2.5 transition-colors hover:bg-indigo-50/70 ${isExpanded ? "border-b border-slate-200 bg-indigo-50/40" : "bg-slate-50/80"}`}>
+                <button
+                    type="button"
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? "Collapse" : "Expand"} conflicts for pull request #${pullRequest.prNumber}`}
+                    onClick={() => setIsExpanded((expanded) => !expanded)}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500"
+                >
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-indigo-100 bg-white text-indigo-600">
+                        <GitPullRequest className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-xs font-semibold text-slate-800">
+                            {pullRequest.title}
+                        </span>
+                        <span className="mt-0.5 block text-[0.6875rem] text-slate-500">
+                            Pull request #{pullRequest.prNumber}
+                        </span>
+                    </span>
+                    <span className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[0.6875rem] font-medium tabular-nums text-slate-600">
+                        {conflicts.length} {conflicts.length === 1 ? "file" : "files"}
+                    </span>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center text-slate-400">
+                        {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                        )}
+                    </span>
+                </button>
+                <Link
+                    href={pullRequest.htmlUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Open pull request #${pullRequest.prNumber} on GitHub`}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-white hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+            </header>
+            {isExpanded && (
+                <div className="w-full min-w-0 bg-white">
+                    <div className="w-full min-w-0 border-l-0 divide-y divide-slate-200">
+                        {conflicts.map((conflict) => (
+                            <ConflictFile
+                                key={`${conflict.prAId}-${conflict.prBId}-${conflict.file}`}
+                                conflict={conflict}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -85,7 +172,7 @@ function ConflictFile({ conflict }: { conflict: ConflictType }) {
 
     return (
         <Collapsible label={conflict.file}>
-            <div className="overflow-x-auto">
+            <div className="w-full min-w-0 overflow-x-auto">
                 <div className="grid grid-cols-2 divide-x divide-slate-200">
                     <PullRequestHeader
                         pullRequest={conflict.prA}
