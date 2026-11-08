@@ -457,8 +457,8 @@ export default function Repository({
                                 </div>
                             </section>
 
-                            <Tabs defaultValue="repositories" className="gap-6">
-                                <TabsList variant="line" aria-label="Installation views">
+                            <Tabs defaultValue="tracked-pull-requests" className="gap-6">
+                                <TabsList variant="line" aria-label="Repository views">
                                     <TabsTrigger value="tracked-pull-requests">Tracking</TabsTrigger>
                                     <TabsTrigger value="activity">Activity</TabsTrigger>
                                 </TabsList>
@@ -748,7 +748,7 @@ export default function Repository({
                                         - Condition: conflictingPrIds has the selected PR id + same condition as 'Scan Conflict' button visibility + visibility permissions handled at
                                             the prop level of the banner component.
                                     */}
-                                    {selectedPullRequest.isTracked && ['completed', 'error'].includes(selectedPullRequest.processingStatus) && selectedPullRequest.conflictState !== 'conflicts_found' && (
+                                    {selectedPullRequest.isTracked && conflictingPRIds.has(selectedPullRequest._id) && ['completed', 'error'].includes(selectedPullRequest.processingStatus) && selectedPullRequest.conflictState !== 'conflicts_found' && (
                                         <Banner
                                             variant="warning"
                                             title="Conflicts detected with another pull request"

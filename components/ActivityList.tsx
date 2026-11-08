@@ -15,7 +15,7 @@ export type ActivityLog = {
     event: string;
     status: 'info' | 'success' | 'warning' | 'error';
     message: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     createdAt: string;
     childLogs?: ActivityLog[];
 };
@@ -97,6 +97,7 @@ export default function ActivityList({
         installationId: string;
         token: string;
         logs?: ActivityLog[];
+        hasMore?: boolean;
         error?: string;
     } | null>(null);
 
@@ -122,13 +123,13 @@ export default function ActivityList({
         (async () => {
             try {
                 const query = new URLSearchParams({ installationId: githubInstallationId });
-                if(variant !== 'installation' && repositoryId) {
+                if (variant !== 'installation' && repositoryId) {
                     query.append('repoId', repositoryId);
                 }
-                if(variant === 'pullrequest' && pullRequestId) {
+                if (variant === 'pullrequest' && pullRequestId) {
                     query.append('prId', pullRequestId);
                 }
-                
+
                 const response = await fetch(
                     `${process.env.NEXT_PUBLIC_SERVER_URL}/activity-logs?${query.toString()}`,
                     {
@@ -148,6 +149,7 @@ export default function ActivityList({
                         installationId: githubInstallationId,
                         token,
                         logs: parsed.logs,
+                        hasMore: parsed.hasMore === true,
                     });
                 }
             } catch (error) {
@@ -164,7 +166,7 @@ export default function ActivityList({
         return () => {
             cancelled = true;
         };
-    }, [githubInstallationId, session.status, session.data?.repoProbeAuthToken]);
+    }, [githubInstallationId, repositoryId, pullRequestId, variant, session.status, session.data?.repoProbeAuthToken]);
 
     return (
         <section aria-label={title}>
@@ -173,10 +175,18 @@ export default function ActivityList({
                     <h2 className={`font-semibold ${isPullRequestActivity ? "text-lg" : "text-xl"}`}>{title}</h2>
                     <p className="mt-1 text-sm text-slate-500">{description}</p>
                 </div>
-                <span className={`shrink-0 rounded-full bg-indigo-100 font-medium text-indigo-700 ${isPullRequestActivity ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"}`}>
-                    {activityResult?.logs?.length} {activityResult?.logs?.length === 1 ? "event" : "events"}
-                </span>
+                {currentActivityResult?.logs && (
+                    <span className={`shrink-0 rounded-full bg-indigo-100 font-medium text-indigo-700 ${isPullRequestActivity ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"}`}>
+                        {currentActivityResult.logs.length} {currentActivityResult.logs.length === 1 ? "event" : "events"}
+                    </span>
+                )}
             </div>
+
+            {currentActivityResult?.hasMore && (
+                <p className="mb-3 text-xs text-slate-500">
+                    Showing the 100 most recent activity events.
+                </p>
+            )}
 
             {activityError ? (
                 <div role="alert" className={`text-center text-sm text-red-700 ${isPullRequestActivity ? "border-y border-red-200 py-6" : "rounded-md border border-red-200 bg-white px-6 py-8 shadow-sm"}`}>
