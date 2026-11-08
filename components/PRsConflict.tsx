@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, ChevronDown, ChevronRight, GitPullRequest } from "lucide-react";
 import { useId, useMemo, useState } from "react";
-import Collapsible from "./ui/collapsible";
+import ConflictFileCollapsible from "./ui/conflict-file-collapsible";
 import { buildVirtualTable, LineContainingHunk } from "@/lib/conflicts";
 
 interface LineType {
@@ -171,7 +171,7 @@ function ConflictFile({ conflict }: { conflict: ConflictType }) {
     );
 
     return (
-        <Collapsible label={conflict.file}>
+        <ConflictFileCollapsible label={conflict.file}>
             <div className="w-full min-w-0 overflow-x-auto">
                 <div className="grid grid-cols-2 divide-x divide-slate-200">
                     <PullRequestHeader
@@ -216,7 +216,7 @@ function ConflictFile({ conflict }: { conflict: ConflictType }) {
                     )}
                 </div>
             </div>
-        </Collapsible>
+        </ConflictFileCollapsible>
     );
 }
 
@@ -240,7 +240,7 @@ function PullRequestHeader({
     const versionSelectId = useId();
 
     return (
-        <div className="flex min-w-0 items-center gap-2 bg-slate-50 px-3 py-2">
+        <div className="sticky top-[6.25rem] z-20 flex h-14 min-w-0 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3">
             <Link
                 className="group flex min-w-0 flex-1 items-center gap-3 py-1 transition-colors"
                 href={pullRequest.htmlUrl}
