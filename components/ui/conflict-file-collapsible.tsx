@@ -1,14 +1,13 @@
 import { ChevronDown, ChevronRight, FileCode2 } from "lucide-react";
 import { useState } from "react";
 
-type CollapsibleProps = {
+type ConflictFileCollapsibleProps = {
     label: string;
     children: React.ReactNode;
-    onClick?: () => void;
 }
 
-export default function Collapsible({ label, children, onClick }: CollapsibleProps) {
-    const [isExpanded, setIsExpanded] = useState<boolean>(false);
+export default function ConflictFileCollapsible({ label, children }: ConflictFileCollapsibleProps) {
+    const [isExpanded, setIsExpanded] = useState(false);
 
     return (
         <div className="w-full min-w-0 border-l-0">
@@ -16,10 +15,7 @@ export default function Collapsible({ label, children, onClick }: CollapsiblePro
                 type="button"
                 aria-expanded={isExpanded}
                 className={`sticky top-0 z-20 flex w-full min-w-0 items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-amber-50/40 focus-visible:z-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-500 ${isExpanded ? 'border-b border-slate-200 bg-amber-50/30' : 'bg-white'}`}
-                onClick={() => {
-                    setIsExpanded(prev => !prev);
-                    onClick?.();
-                }}
+                onClick={() => setIsExpanded(prev => !prev)}
             >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500">
                     <FileCode2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -45,5 +41,5 @@ export default function Collapsible({ label, children, onClick }: CollapsiblePro
                 </div>
             )}
         </div>
-    )
+    );
 }
