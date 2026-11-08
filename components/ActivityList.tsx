@@ -196,7 +196,7 @@ export default function ActivityList({
                 <div className={`text-center text-sm text-slate-500 ${isPullRequestActivity ? "border-y border-slate-200 py-8" : "rounded-md border border-slate-200 bg-white px-6 py-12 shadow-sm"}`}>
                     Loading activity…
                 </div>
-            ) : activityResult?.logs?.length === 0 ? (
+            ) : currentActivityResult?.logs?.length === 0 ? (
                 <div className={`text-center ${isPullRequestActivity ? "border-y border-dashed border-slate-300 py-8" : "rounded-md border border-dashed border-slate-300 bg-white px-6 py-12"}`}>
                     <h3 className="font-semibold">{emptyTitle}</h3>
                     <p className="mt-1 text-sm text-slate-500">{emptyDescription}</p>
@@ -205,7 +205,7 @@ export default function ActivityList({
                 <ol className={isPullRequestActivity
                     ? "divide-y divide-slate-100 border-y border-slate-200"
                     : "divide-y divide-slate-100 rounded-md border border-slate-200 bg-white shadow-sm"}>
-                    {activityResult?.logs?.map((log) => (
+                    {currentActivityResult?.logs?.map((log) => (
                         <ActivityLogItem key={log._id} log={log} />
                     ))}
                 </ol>

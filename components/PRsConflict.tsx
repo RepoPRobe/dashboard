@@ -240,7 +240,7 @@ function PullRequestHeader({
     const versionSelectId = useId();
 
     return (
-        <div className="sticky top-[6.25rem] z-20 flex h-14 min-w-0 items-center gap-2 border-b border-slate-200 bg-slate-50 px-3">
+        <div className="flex min-w-0 items-center gap-2 bg-slate-50 px-3 py-2">
             <Link
                 className="group flex min-w-0 flex-1 items-center gap-3 py-1 transition-colors"
                 href={pullRequest.htmlUrl}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
@@ -115,22 +115,39 @@ export default function Repository({
 }) {
     const { repositoryId, installationId } = use(params);
     const session = useSession();
-    const [repositoryData, setRepositoryData] = useState<RepositoryData | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const [repositoryResult, setRepositoryResult] = useState<{
+        key: string;
+        data: RepositoryData;
+    } | null>(null);
+    const [repositoryError, setRepositoryError] = useState<{
+        key: string;
+        message: string;
+    } | null>(null);
     const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestType | null>(null);
     const [conflictsData, setConflictsData] = useState([]);
     const [isConflictDialogOpen, setIsConflictDialogOpen] = useState<boolean>(false);
+    const token = session.data?.repoProbeAuthToken;
+    const repositoryRequestKey = JSON.stringify([installationId, repositoryId, token]);
+    const repositoryData = session.status === "authenticated" && token
+        && repositoryResult?.key === repositoryRequestKey
+        ? repositoryResult.data
+        : null;
+    const error = repositoryError?.key === repositoryRequestKey
+        ? repositoryError.message
+        : session.status === "authenticated" && !token
+            ? "Authentication token is unavailable."
+            : "";
+    const isLoading = session.status === "loading"
+        || session.status === "authenticated" && !!token && !repositoryData && !error;
 
     const refreshAfterPRMutation = async () => {
         try {
-            const token = session.data?.repoProbeAuthToken;
             if (!token) {
                 throw new Error("Authentication token is unavailable.");
             }
 
             const repository = await fetchRepositoryData(installationId, repositoryId, token);
-            setRepositoryData(repository);
+            setRepositoryResult({ key: repositoryRequestKey, data: repository });
         } catch (error) {
             console.error("Unable to refresh repository data after pull request action:", error);
             toast.error("Action completed, but repository data could not be refreshed.");
@@ -138,13 +155,16 @@ export default function Repository({
     };
 
     const updatePullRequest = (prNumber: number, updates: Partial<PullRequestType>) => {
-        setRepositoryData((current) => current ? {
+        setRepositoryResult((current) => current?.key === repositoryRequestKey ? {
             ...current,
-            stats: {
-                ...current.stats,
-                totalPRsInRepoPRobe: current.stats.totalPRsInRepoPRobe.map((pullRequest) =>
-                    pullRequest.prNumber === prNumber ? { ...pullRequest, ...updates } : pullRequest
-                ),
+            data: {
+                ...current.data,
+                stats: {
+                    ...current.data.stats,
+                    totalPRsInRepoPRobe: current.data.stats.totalPRsInRepoPRobe.map((pullRequest) =>
+                        pullRequest.prNumber === prNumber ? { ...pullRequest, ...updates } : pullRequest
+                    ),
+                },
             },
         } : current);
         setSelectedPullRequest((current) =>
@@ -153,16 +173,29 @@ export default function Repository({
     };
 
     useEffect(() => {
-        if (session.status === 'loading' || session.status === 'unauthenticated') return;
-        const token = session.data?.repoProbeAuthToken;
-        if (!token) return;
-
         let cancelled = false;
+        const clearRepositoryState = () => {
+            cancelled = true;
+            setRepositoryResult(null);
+            setRepositoryError(null);
+            setSelectedPullRequest(null);
+            setConflictsData([]);
+            setIsConflictDialogOpen(false);
+        };
+
+        if (session.status === "loading") {
+            return clearRepositoryState;
+        }
+
+        if (session.status === "unauthenticated") {
+            return clearRepositoryState;
+        }
+
+        if (!token) {
+            return clearRepositoryState;
+        }
 
         const fetchRepository = async () => {
-            setLoading(true);
-            setError("");
-
             try {
                 const query = new URLSearchParams({ installationId, repositoryId });
                 const response = await fetch(
@@ -181,22 +214,23 @@ export default function Repository({
                     throw new Error("Repository details were not returned.");
                 }
 
-                if (!cancelled) setRepositoryData(parsed.repository);
+                if (!cancelled) {
+                    setRepositoryResult({ key: repositoryRequestKey, data: parsed.repository });
+                }
             } catch (fetchError) {
                 if (!cancelled) {
-                    setError(fetchError instanceof Error ? fetchError.message : "Something went wrong.");
+                    setRepositoryError({
+                        key: repositoryRequestKey,
+                        message: fetchError instanceof Error ? fetchError.message : "Something went wrong.",
+                    });
                 }
-            } finally {
-                if (!cancelled) setLoading(false);
             }
         };
 
         fetchRepository();
 
-        return () => {
-            cancelled = true;
-        };
-    }, [installationId, repositoryId, session.data?.repoProbeAuthToken]);
+        return clearRepositoryState;
+    }, [installationId, repositoryId, repositoryRequestKey, session.status, token]);
 
     const handleTrackPR = async () => {
         try {
@@ -410,7 +444,20 @@ export default function Repository({
                         </p>
                     </header>
 
-                    {loading ? (
+                    {session.status === "unauthenticated" ? (
+                        <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center shadow-sm">
+                            <h2 className="text-lg font-semibold">Sign in to view this repository</h2>
+                            <p className="mt-2 text-sm text-slate-600">
+                                Your session has ended. Sign in with GitHub to continue.
+                            </p>
+                            <Button
+                                className="mt-5"
+                                onClick={() => void signIn("github", { callbackUrl: window.location.href })}
+                            >
+                                Sign in with GitHub
+                            </Button>
+                        </div>
+                    ) : isLoading ? (
                         <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500 shadow-sm">
                             Loading repository details…
                         </div>
@@ -593,12 +640,12 @@ export default function Repository({
             </main>
 
             <Sheet
-                open={selectedPullRequest !== null}
+                open={Boolean(repositoryData && selectedPullRequest)}
                 onOpenChange={(open) => {
                     if (!open) setSelectedPullRequest(null);
                 }}
             >
-                {selectedPullRequest && (
+                {repositoryData && selectedPullRequest && (
                     <SheetContent className="w-full data-[side=right]:w-full gap-0 overflow-hidden border-l border-slate-200 bg-white p-0 sm:max-w-xl data-[side=right]:sm:max-w-xl">
                         <Tabs defaultValue="details" className="min-h-0 flex-1 flex-col gap-0">
                             <SheetHeader className="gap-3 border-b border-slate-100 px-5 pt-6 pb-4 sm:px-6">
@@ -754,9 +801,7 @@ export default function Repository({
                                             title="Conflicts detected with another pull request"
                                             description={repositoryData?.permissions?.push
                                                 ? "Run a conflict scan to refresh the details and review the conflicting changes."
-                                                : repositoryData?.permissions?.push
-                                                    ? "A conflict has been detected. Conflict scanning will be available when this pull request is ready."
-                                                    : "A conflict has been detected. Ask someone with repository write access to run a scan and review the details."}
+                                                : "A conflict has been detected. Ask someone with repository write access to run a scan and review the details."}
                                         />
                                     )}
                                 </div>
@@ -814,7 +859,7 @@ export default function Repository({
                 )}
             </Sheet>
 
-            <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
+            <Dialog open={isConflictDialogOpen && !!repositoryData} onOpenChange={setIsConflictDialogOpen}>
                 <DialogContent className="min-w-[80vw]">
                     <DialogHeader>
                         <DialogTitle>View Conflicts for #{selectedPullRequest?.prNumber}</DialogTitle>
