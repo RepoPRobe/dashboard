@@ -19,7 +19,7 @@ import PRsConflicts from "@/components/PRsConflict";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityList from "@/components/ActivityList";
 import { Banner } from "@/components/ui/banner";
-import { ExternalLink } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronDown, ExternalLink, LoaderCircle, Search } from "lucide-react";
 
 type UserType = {
     id: string;
@@ -64,6 +64,18 @@ type PullRequestType = {
     deletedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
+}
+
+type PullRequestSearchField = "prNumber" | "title" | "author.login";
+
+const pullRequestSearchFieldLabels: Record<PullRequestSearchField, string> = {
+    prNumber: "PR number",
+    title: "Title",
+    "author.login": "Author",
+};
+
+function isPullRequestSearchField(value: string): value is PullRequestSearchField {
+    return Object.hasOwn(pullRequestSearchFieldLabels, value);
 }
 
 
@@ -123,9 +135,22 @@ export default function Repository({
         key: string;
         message: string;
     } | null>(null);
+    const [pullRequestSearch, setPullRequestSearch] = useState("");
+    const [pullRequestSearchField, setPullRequestSearchField] = useState<PullRequestSearchField>("prNumber");
     const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestType | null>(null);
     const [conflictsData, setConflictsData] = useState([]);
     const [isConflictDialogOpen, setIsConflictDialogOpen] = useState<boolean>(false);
+    const [untrackedOpenPRs, setUntrackedOpenPRs] = useState<{
+        githubId: number,
+        title: string,
+        prNumber: number,
+        htmlUrl: string,
+        updatedAt: string,
+    }[]>([]);
+    const [untrackedPRSearch, setUntrackedPRSearch] = useState("");
+    const [isLoadingUntrackedOpenPRs, setIsLoadingUntrackedOpenPRs] = useState(false);
+    const [untrackedOpenPRsError, setUntrackedOpenPRsError] = useState("");
+    const [trackingUntrackedPRNumber, setTrackingUntrackedPRNumber] = useState<number | null>(null);
     const token = session.data?.repoProbeAuthToken;
     const repositoryRequestKey = JSON.stringify([installationId, repositoryId, token]);
     const repositoryData = session.status === "authenticated" && token
@@ -424,18 +449,115 @@ export default function Repository({
         }
     }
 
+    const fetchUntrackedOpenPRs = async () => {
+        setIsLoadingUntrackedOpenPRs(true);
+        setUntrackedOpenPRsError("");
+
+        try {
+            if (!token) {
+                throw new Error("Authentication token is unavailable.");
+            }
+
+            const query = new URLSearchParams({ installationId, repositoryId });
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_SERVER_URL}/untracked-open-pull-requests?${query}`,
+                {
+                    method: 'GET',
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+            const parsed = await response.json();
+
+            if (!response.ok || !parsed.success) {
+                throw new Error(parsed.message || "Unable to fetch untracked pull requests.");
+            }
+
+            setUntrackedOpenPRs(parsed.untrackedOpenPullRequests ?? []);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to fetch untracked pull requests.";
+            console.error("Unable to fetch untracked pull requests:", error);
+            setUntrackedOpenPRsError(message);
+            toast.error(message);
+        } finally {
+            setIsLoadingUntrackedOpenPRs(false);
+        }
+    }
+
+    const handleTrackUntrackedPR = async (prNumber: number) => {
+        if (!token) {
+            toast.error("Authentication token is unavailable.");
+            return;
+        }
+
+        setTrackingUntrackedPRNumber(prNumber);
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_SERVER_URL}/pullrequest/track`,
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ installationId, repositoryId, prNumber }),
+                }
+            );
+            const parsed = await response.json();
+
+            if (!response.ok || !parsed.success) {
+                throw new Error(parsed.message || "Unable to track pull request.");
+            }
+
+            toast.success(parsed.message || "Pull request tracking initiated.");
+            setUntrackedOpenPRs((current) => current.filter((pr) => pr.prNumber !== prNumber));
+            await refreshAfterPRMutation();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Unable to track pull request.";
+            console.error("Unable to track untracked pull request:", error);
+            toast.error(message);
+        } finally {
+            setTrackingUntrackedPRNumber(null);
+        }
+    }
+
     const repository = repositoryData?.repository;
     const pullRequests = repositoryData?.stats.totalPRsInRepoPRobe ?? [];
     const conflictingPRIds = new Set(repositoryData?.stats.conflictingPRIds ?? []);
     const conflictCount = pullRequests.filter((pr) => conflictingPRIds.has(pr._id)).length;
     const openCount = pullRequests.filter((pr) => pr.state === "open").length;
+    const normalizedSearch = pullRequestSearch.trim().toLocaleLowerCase();
+    const filteredPullRequests = normalizedSearch
+        ? pullRequests.filter((pr) => {
+            const searchableValues: Record<PullRequestSearchField, string> = {
+                prNumber: String(pr.prNumber),
+                title: pr.title,
+                "author.login": pr.author.login,
+            };
+            return searchableValues[pullRequestSearchField].toLocaleLowerCase().includes(normalizedSearch);
+        })
+        : pullRequests;
+    const normalizedUntrackedPRSearch = untrackedPRSearch.trim().toLocaleLowerCase();
+    const filteredUntrackedOpenPRs = normalizedUntrackedPRSearch
+        ? untrackedOpenPRs.filter((pr) =>
+            String(pr.prNumber).includes(normalizedUntrackedPRSearch)
+            || pr.title.toLocaleLowerCase().includes(normalizedUntrackedPRSearch)
+        )
+        : untrackedOpenPRs;
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
-            <AppHeader installationId={installationId} />
+            <AppHeader />
             <main className="px-6 py-8 sm:px-10">
                 <div className="mx-auto max-w-5xl">
                     <header className="mb-8">
+                        <Link
+                            href={`/installation/${installationId}`}
+                            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-indigo-600"
+                        >
+                            <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                            Back to installation
+                        </Link>
                         <h1 className="text-3xl font-bold tracking-tight">
                             {repository?.name ?? "Repository"}
                         </h1>
@@ -458,7 +580,11 @@ export default function Repository({
                             </Button>
                         </div>
                     ) : isLoading ? (
-                        <div className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500 shadow-sm">
+                        <div
+                            role="status"
+                            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-12 text-sm text-slate-500 shadow-sm"
+                        >
+                            <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-indigo-600" />
                             Loading repository details…
                         </div>
                     ) : error ? (
@@ -507,6 +633,7 @@ export default function Repository({
                             <Tabs defaultValue="tracked-pull-requests" className="gap-6">
                                 <TabsList variant="line" aria-label="Repository views">
                                     <TabsTrigger value="tracked-pull-requests">Tracking</TabsTrigger>
+                                    <TabsTrigger value="untracked-pull-requests" onClick={() => fetchUntrackedOpenPRs()}>Untracked PRs</TabsTrigger>
                                     <TabsTrigger value="activity">Activity</TabsTrigger>
                                 </TabsList>
 
@@ -521,19 +648,76 @@ export default function Repository({
                                             </span>
                                         </div>
 
-                                        <div className="mb-4 grid gap-4 sm:grid-cols-3">
-                                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                                <p className="text-sm text-slate-500">Tracked</p>
-                                                <p className="mt-1 text-2xl font-semibold">{pullRequests.length}</p>
+                                        <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="text-xs text-slate-500">Tracked</p>
+                                                    <p className="text-sm font-semibold tabular-nums">{pullRequests.length}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="text-xs text-slate-500">Open</p>
+                                                    <p className="text-sm font-semibold tabular-nums">{openCount}</p>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className="text-xs text-slate-500">With conflicts</p>
+                                                    <p className="text-sm font-semibold tabular-nums text-amber-600">{conflictCount}</p>
+                                                </div>
                                             </div>
-                                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                                <p className="text-sm text-slate-500">Open</p>
-                                                <p className="mt-1 text-2xl font-semibold">{openCount}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                                                <p className="text-sm text-slate-500">With conflicts</p>
-                                                <p className="mt-1 text-2xl font-semibold text-amber-600">{conflictCount}</p>
-                                            </div>
+
+                                            <details className="group border-t border-slate-100">
+                                                <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-200 [&::-webkit-details-marker]:hidden">
+                                                    <Search aria-hidden="true" className="h-4 w-4 text-slate-500" />
+                                                    <span>Search pull requests</span>
+                                                    {pullRequestSearch.trim() && (
+                                                        <span className="truncate text-xs font-normal text-slate-500">
+                                                            {pullRequestSearchFieldLabels[pullRequestSearchField]}: {pullRequestSearch.trim()}
+                                                        </span>
+                                                    )}
+                                                    <ChevronDown aria-hidden="true" className="ml-auto h-4 w-4 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+                                                </summary>
+                                                <div className="border-t border-slate-100 p-3">
+                                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <label className="sr-only" htmlFor="pull-request-search-field">
+                                                            Search field
+                                                        </label>
+                                                        <div className="relative sm:w-40 sm:shrink-0">
+                                                            <select
+                                                                id="pull-request-search-field"
+                                                                value={pullRequestSearchField}
+                                                                onChange={(event) => {
+                                                                    const value = event.target.value;
+                                                                    if (isPullRequestSearchField(value)) {
+                                                                        setPullRequestSearchField(value);
+                                                                    }
+                                                                }}
+                                                                className="h-10 w-full appearance-none rounded-lg border border-slate-200 bg-slate-50/70 px-3 pr-9 text-sm font-medium text-slate-700 outline-none transition-colors hover:bg-slate-100 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                                                            >
+                                                                <option value="prNumber">PR number</option>
+                                                                <option value="title">Title</option>
+                                                                <option value="author.login">Author</option>
+                                                            </select>
+                                                            <ChevronDown aria-hidden="true" className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                        </div>
+                                                        <label className="sr-only" htmlFor="pull-request-search">
+                                                            Search tracked pull requests
+                                                        </label>
+                                                        <div className="relative min-w-0 flex-1">
+                                                            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                            <input
+                                                                id="pull-request-search"
+                                                                type="search"
+                                                                value={pullRequestSearch}
+                                                                onChange={(event) => setPullRequestSearch(event.target.value)}
+                                                                placeholder={`Search by ${pullRequestSearchFieldLabels[pullRequestSearchField].toLocaleLowerCase()}…`}
+                                                                className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <p className="mt-2 text-right text-xs text-slate-500">
+                                                        Showing {filteredPullRequests.length} of {pullRequests.length} pull requests
+                                                    </p>
+                                                </div>
+                                            </details>
                                         </div>
 
                                         {pullRequests.length === 0 ? (
@@ -543,76 +727,86 @@ export default function Repository({
                                                     Tracked pull requests for this repository will appear here.
                                                 </p>
                                             </div>
+                                        ) : filteredPullRequests.length === 0 ? (
+                                            <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+                                                <h3 className="font-semibold">No matching pull requests</h3>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    Try another search term or choose a different field.
+                                                </p>
+                                            </div>
                                         ) : (
-                                            <ul className="space-y-3">
-                                                {pullRequests.map((pr) => {
+                                            <ul className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm divide-y divide-slate-200">
+                                                {filteredPullRequests.map((pr) => {
                                                     const hasConflicts = conflictingPRIds.has(pr._id);
 
                                                     return (
                                                         <li
                                                             key={pr._id}
-                                                            className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                                                            className="group bg-white px-3 py-2.5 transition-colors hover:bg-slate-50"
                                                         >
-                                                            <div className="flex flex-wrap items-start justify-between gap-4">
-                                                                <div className="min-w-0">
-                                                                    <Link
-                                                                        href={pr.htmlUrl}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="font-semibold text-slate-900 hover:text-indigo-600"
-                                                                    >
-                                                                        {pr.title}
-                                                                    </Link>
-                                                                    <p className="mt-1 text-sm text-slate-500">
-                                                                        #{pr.prNumber} · <Link href={pr.author.githubUrl} target="_blank" rel="noreferrer" className="font-medium text-slate-700 underline underline-offset-2 hover:text-indigo-600">@{pr.author.login}</Link> wants to merge into <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs text-slate-700">{pr.baseBranch}</code> from <code className="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs text-slate-700">{pr.headBranch}</code>
+                                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2.5">
+                                                                        <div className="flex min-w-0 items-center gap-2">
+                                                                            <span className="shrink-0 text-xs font-medium tabular-nums text-slate-400">
+                                                                                #{pr.prNumber}
+                                                                            </span>
+                                                                            <Link
+                                                                                href={pr.htmlUrl}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="line-clamp-1 text-sm font-medium text-slate-900 transition-colors group-hover:text-indigo-700 sm:text-[15px]"
+                                                                            >
+                                                                                {pr.title}
+                                                                            </Link>
+                                                                        </div>
+                                                                        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                                                                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${pr.state === "open"
+                                                                                ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-100"
+                                                                                : "bg-slate-100 text-slate-600 ring-1 ring-inset ring-slate-200"
+                                                                                }`}>
+                                                                                <span aria-hidden="true" className={`h-1 w-1 rounded-full ${pr.state === "open" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                                                                                {pr.state}
+                                                                            </span>
+                                                                            {pr.isDraft && (
+                                                                                <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-200">
+                                                                                    Draft
+                                                                                </span>
+                                                                            )}
+                                                                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${hasConflicts
+                                                                                ? "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200"
+                                                                                : "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200"
+                                                                                }`}>
+                                                                                <span aria-hidden="true" className={`h-1 w-1 rounded-full ${hasConflicts ? "bg-amber-500" : "bg-slate-400"}`} />
+                                                                                {hasConflicts ? "Conflicts found" : pr.conflictState === 'unknown' ? "Not checked" : "No conflicts"}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <p className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs leading-4 text-slate-500">
+                                                                        <Link href={pr.author.githubUrl} target="_blank" rel="noreferrer" className="font-medium text-slate-700 underline underline-offset-2 hover:text-indigo-600">
+                                                                            @{pr.author.login}
+                                                                        </Link>
+                                                                        <span> wants to merge into </span>
+                                                                        <code className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">{pr.baseBranch}</code>
+                                                                        <span> from </span>
+                                                                        <code className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-[11px] text-slate-700">{pr.headBranch}</code>
                                                                     </p>
                                                                 </div>
 
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${pr.state === "open"
-                                                                        ? "bg-emerald-50 text-emerald-700"
-                                                                        : "bg-slate-100 text-slate-600"
-                                                                        }`}>
-                                                                        {pr.state}
+                                                                <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-100 pt-2 sm:justify-end sm:border-0 sm:pt-0">
+                                                                    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-slate-500">
+                                                                        <CalendarClock aria-hidden="true" className="h-3 w-3 text-slate-400" />
+                                                                        Updated {new Date(pr.githubUpdatedAt).toLocaleDateString()}
                                                                     </span>
-                                                                    {pr.isDraft && (
-                                                                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                                                            Draft
-                                                                        </span>
-                                                                    )}
-                                                                    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${hasConflicts
-                                                                        ? "bg-amber-50 text-amber-700"
-                                                                        : "bg-slate-100 text-slate-600"
-                                                                        }`}>
-                                                                        {hasConflicts ? "Conflicts found" : "No conflicts"}
-                                                                    </span>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-7 min-w-16 rounded-lg border-slate-200 px-2.5 text-[11px] transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                                                                        onClick={() => setSelectedPullRequest(pr)}
+                                                                    >
+                                                                        Details
+                                                                    </Button>
                                                                 </div>
-                                                            </div>
-
-                                                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 text-sm">
-                                                                <Link
-                                                                    href={pr.author.githubUrl}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="flex items-center gap-2 font-medium text-slate-700 hover:text-indigo-600"
-                                                                >
-                                                                    <img
-                                                                        src={pr.author.avatarUrl}
-                                                                        alt=""
-                                                                        className="h-6 w-6 rounded-full"
-                                                                    />
-                                                                    {pr.author.login}
-                                                                </Link>
-                                                                <span className="text-slate-500">
-                                                                    Updated {new Date(pr.githubUpdatedAt).toLocaleDateString()}
-                                                                </span>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => setSelectedPullRequest(pr)}
-                                                                >
-                                                                    Details
-                                                                </Button>
                                                             </div>
                                                         </li>
                                                     );
@@ -632,6 +826,121 @@ export default function Repository({
                                         githubInstallationId={installationId}
                                         repositoryId={repositoryId}
                                     />
+                                </TabsContent>
+
+                                <TabsContent value="untracked-pull-requests">
+                                    <section aria-labelledby="untracked-pull-requests-heading">
+                                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                            <div>
+                                                <h2 id="untracked-pull-requests-heading" className="text-xl font-semibold">
+                                                    Untracked open pull requests
+                                                </h2>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    Open pull requests in this repository that RepoProbe is not tracking yet.
+                                                </p>
+                                            </div>
+                                            <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
+                                                {untrackedOpenPRs.length} {untrackedOpenPRs.length === 1 ? "pull request" : "pull requests"}
+                                            </span>
+                                        </div>
+
+                                        {!repositoryData.permissions.triage && (
+                                            <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                                Triage permission is required to track pull requests in this repository.
+                                            </p>
+                                        )}
+
+                                        {!isLoadingUntrackedOpenPRs && !untrackedOpenPRsError && untrackedOpenPRs.length > 0 && (
+                                            <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                                                <div className="relative p-3">
+                                                    <label className="sr-only" htmlFor="untracked-pull-request-search">
+                                                        Search untracked pull requests
+                                                    </label>
+                                                    <div className="relative">
+                                                        <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                                        <input
+                                                            id="untracked-pull-request-search"
+                                                            type="search"
+                                                            value={untrackedPRSearch}
+                                                            onChange={(event) => setUntrackedPRSearch(event.target.value)}
+                                                            placeholder="Search by PR number or title…"
+                                                            className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                                                        />
+                                                    </div>
+                                                    <p className="mt-2 text-right text-xs text-slate-500">
+                                                        Showing {filteredUntrackedOpenPRs.length} of {untrackedOpenPRs.length} pull requests
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {isLoadingUntrackedOpenPRs ? (
+                                            <div role="status" className="rounded-xl border border-slate-200 bg-white px-6 py-12 text-center text-sm text-slate-500">
+                                                Loading untracked pull requests…
+                                            </div>
+                                        ) : untrackedOpenPRsError ? (
+                                            <div role="alert" className="rounded-xl border border-red-200 bg-white px-6 py-8 text-center">
+                                                <p className="text-sm text-red-700">{untrackedOpenPRsError}</p>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="mt-3"
+                                                    onClick={() => fetchUntrackedOpenPRs()}
+                                                >
+                                                    Try again
+                                                </Button>
+                                            </div>
+                                        ) : untrackedOpenPRs.length === 0 ? (
+                                            <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
+                                                <h3 className="font-semibold">No untracked pull requests</h3>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    All open pull requests in this repository are being tracked.
+                                                </p>
+                                            </div>
+                                        ) : filteredUntrackedOpenPRs.length === 0 ? (
+                                            <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
+                                                <h3 className="font-semibold">No matching pull requests</h3>
+                                                <p className="mt-1 text-sm text-slate-500">
+                                                    Try another PR number or title.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <ul className="space-y-2">
+                                                {filteredUntrackedOpenPRs.map((pr) => (
+                                                    <li
+                                                        key={pr.githubId}
+                                                        className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                                                    >
+                                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
+                                                            <div className="min-w-0 flex-1">
+                                                                <Link
+                                                                    href={pr.htmlUrl}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="line-clamp-2 text-sm font-semibold text-slate-900 hover:text-indigo-600"
+                                                                >
+                                                                    #{pr.prNumber} {pr.title}
+                                                                </Link>
+                                                                <p className="mt-2 text-xs text-slate-500">
+                                                                    Updated {new Date(pr.updatedAt).toLocaleDateString()}
+                                                                </p>
+                                                            </div>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 shrink-0 px-3 text-xs cursor-pointer"
+                                                                disabled={!repositoryData.permissions.triage || trackingUntrackedPRNumber !== null}
+                                                                title={!repositoryData.permissions.triage ? "Triage permission is required to track pull requests." : undefined}
+                                                                onClick={() => handleTrackUntrackedPR(pr.prNumber)}
+                                                            >
+                                                                {trackingUntrackedPRNumber === pr.prNumber ? "Tracking…" : "Track"}
+                                                            </Button>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </section>
                                 </TabsContent>
                             </Tabs>
                         </>

@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import LoginButtons from "@/components/LoginButtons";
+import BrandName from "@/components/BrandName";
 
 interface AppHeaderProps {
-  installationId?: string;
+  currentPage?: "dashboard" | "installation";
 }
 
-export default function AppHeader({ installationId }: AppHeaderProps) {
+export default function AppHeader({ currentPage }: AppHeaderProps) {
   const { status } = useSession();
 
   return (
@@ -24,25 +25,17 @@ export default function AppHeader({ installationId }: AppHeaderProps) {
             className="h-9 w-9 scale-90 rounded-md object-contain"
           />
           <span className="text-base font-semibold tracking-tight text-slate-900">
-            Repo<span className="text-indigo-600">PRobe</span>
+            <BrandName />
           </span>
         </Link>
 
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          {status === "authenticated" && (
+        <div className="flex min-w-0 items-center gap-1">
+          {status === "authenticated" && currentPage !== "dashboard" && (
             <Link
               href="/dashboard"
-              className="rounded-md px-2 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-indigo-600 sm:px-3"
+              className="rounded-md px-1.5 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-indigo-600"
             >
               Dashboard
-            </Link>
-          )}
-          {installationId && (
-            <Link
-              href={`/installation/${installationId}`}
-              className="hidden rounded-md px-2 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-indigo-600 sm:inline-flex sm:px-3"
-            >
-              Installation
             </Link>
           )}
           <LoginButtons compact />

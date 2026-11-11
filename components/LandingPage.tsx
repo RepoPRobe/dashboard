@@ -5,6 +5,7 @@ import { useState } from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import LoginButtons from "@/components/LoginButtons";
+import BrandName from "@/components/BrandName";
 import {
   Activity,
   ArrowRight,
@@ -72,8 +73,11 @@ const workflowSteps = [
   {
     number: "01",
     title: "Connect your repositories",
-    description:
-      "Install the GitHub App and select the repositories you want RepoPRobe to monitor.",
+    description: (
+      <>
+        Install the GitHub App and select the repositories you want RepoPRobe to monitor.
+      </>
+    ),
     icon: GitBranch,
   },
   {
@@ -124,7 +128,7 @@ export default function LandingPage() {
             />
 
             <span className="text-xl font-semibold tracking-tight">
-              Repo<span className="text-[#5145FF]">PRobe</span>
+              <BrandName />
             </span>
           </Link>
 
@@ -153,7 +157,6 @@ export default function LandingPage() {
             >
               <GitBranch size={15} />
               Install on GitHub
-              <ArrowRight size={14} />
             </Link>
           </div>
 
@@ -209,7 +212,6 @@ export default function LandingPage() {
             >
               <GitBranch size={17} />
               Install on GitHub
-              <ArrowRight size={16} />
             </button>
           </div>
         )}
@@ -234,20 +236,22 @@ export default function LandingPage() {
 
             <p className="mt-7 max-w-xl text-base leading-8 text-[#526581] sm:text-lg">
               Multiple pull requests. The same files. Unexpected surprises.
-              RepoPRobe identifies overlapping changes early, helping your
-              team review them before integration gets complicated.
+              {" "}RepoPRobe identifies overlapping changes early, helping
+              your team review them before integration gets complicated.
             </p>
 
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link href={GITHUB_APP_URL} target="_blank" className={primaryButton}>
                 <GitBranch size={19} />
                 Get started with GitHub
-                <ArrowRight size={17} />
               </Link>
 
-              <Link href="#workflow" className={secondaryButton}>
-                See how it works
-              </Link>
+              {status === "authenticated" && (
+                <Link href="/dashboard" className={secondaryButton}>
+                  Dashboard
+                </Link>
+              )}
+
             </div>
 
             <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3 text-xs text-[#526581]">
@@ -471,7 +475,7 @@ export default function LandingPage() {
           className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl border border-[#D9D7FF] px-6 py-14 text-center sm:px-12 sm:py-16"
           style={{
             backgroundImage:
-            "radial-gradient(circle at 18% 50%, rgba(81,69,255,0.06) 0%, rgba(81,69,255,0.025) 32%, rgba(81,69,255,0) 72%), linear-gradient(135deg, #FEFDFF 0%, #FAF9FF 100%)",
+              "radial-gradient(circle at 18% 50%, rgba(81,69,255,0.06) 0%, rgba(81,69,255,0.025) 32%, rgba(81,69,255,0) 72%), linear-gradient(135deg, #FEFDFF 0%, #FAF9FF 100%)",
           }}
         >
           <div className="relative">
@@ -495,7 +499,6 @@ export default function LandingPage() {
             <Link href={GITHUB_APP_URL} className={`${primaryButton} mt-8`}>
               <GitBranch size={18} />
               Install RepoPRobe
-              <ArrowRight size={17} />
             </Link>
           </div>
         </div>
@@ -514,7 +517,7 @@ export default function LandingPage() {
             />
 
             <span className="text-sm font-semibold text-[#111827]">
-              Repo<span className="text-[#5145FF]">Probe</span>
+              <BrandName />
             </span>
           </Link>
 
