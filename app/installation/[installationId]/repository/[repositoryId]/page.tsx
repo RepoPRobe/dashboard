@@ -778,7 +778,7 @@ export default function Repository({
                                                                                 : "bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-200"
                                                                                 }`}>
                                                                                 <span aria-hidden="true" className={`h-1 w-1 rounded-full ${hasConflicts ? "bg-amber-500" : "bg-slate-400"}`} />
-                                                                                {hasConflicts ? "Conflicts found" : "No conflicts"}
+                                                                                {hasConflicts ? "Conflicts found" : pr.conflictState === 'unknown' ? "Not checked" : "No conflicts"}
                                                                             </span>
                                                                         </div>
                                                                     </div>
