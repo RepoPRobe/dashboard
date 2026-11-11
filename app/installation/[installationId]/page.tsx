@@ -5,6 +5,7 @@ import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import ActivityList from "@/components/ActivityList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, LoaderCircle } from "lucide-react";
 
 type TrackedRepository = {
     _id: string;
@@ -30,7 +31,12 @@ export default function Installation({ params }: { params: Promise<{ installatio
         token: string;
         repositories: TrackedRepository[];
     } | null>(null);
+    const [completedRepositoryRequestKey, setCompletedRepositoryRequestKey] = useState<string | null>(null);
     const token = session.data?.repoProbeAuthToken;
+    const repositoryRequestKey = JSON.stringify([githubInstallationId, token]);
+    const isLoadingRepositories = session.status === "authenticated"
+        && !!token
+        && completedRepositoryRequestKey !== repositoryRequestKey;
     const trackedRepositories = session.status === 'authenticated' && token && loadedRepositories
         && loadedRepositories.installationId === githubInstallationId && loadedRepositories.token === token
         ? loadedRepositories.repositories
@@ -66,20 +72,31 @@ export default function Installation({ params }: { params: Promise<{ installatio
                 }
             } catch (error) {
                 console.log('Unable to load repositories:', error);
+            } finally {
+                if (!cancelled) {
+                    setCompletedRepositoryRequestKey(repositoryRequestKey);
+                }
             }
         })();
 
         return () => {
             cancelled = true;
         };
-    }, [githubInstallationId, session.status, session.data?.repoProbeAuthToken]);
+    }, [githubInstallationId, repositoryRequestKey, session.status, session.data?.repoProbeAuthToken]);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
-            <AppHeader installationId={githubInstallationId} />
+            <AppHeader currentPage="installation" />
             <main className="px-6 py-8 sm:px-10">
               <div className="mx-auto max-w-5xl">
                 <div className="mb-8">
+                    <Link
+                        href="/dashboard"
+                        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-indigo-600"
+                    >
+                        <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+                        Back to dashboard
+                    </Link>
                     <h1 className="text-3xl font-bold tracking-tight">Installation Repositories</h1>
                     <p className="mt-2 text-slate-600">Manage the GitHub repositories connected to this installation.</p>
                 </div>
@@ -99,7 +116,15 @@ export default function Installation({ params }: { params: Promise<{ installatio
                                 </span>
                             </div>
 
-                            {trackedRepositories.length === 0 ? (
+                            {isLoadingRepositories ? (
+                                <div
+                                    role="status"
+                                    className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-12 text-sm text-slate-500"
+                                >
+                                    <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-indigo-600" />
+                                    Loading repositories...
+                                </div>
+                            ) : trackedRepositories.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
                                     <h3 className="font-semibold">No repositories yet</h3>
                                     <p className="mt-1 text-sm text-slate-500">GitHub repositories will appear here once connected.</p>

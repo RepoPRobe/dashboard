@@ -5,14 +5,19 @@ import { useEffect, useState } from "react"
 import { GithubInstallationType } from "@/types";
 import toast from "react-hot-toast";
 import AppHeader from "@/components/AppHeader";
+import { LoaderCircle } from "lucide-react";
 
 export default function Dashboard() {
     const session = useSession();
+    const [completedInstallationsFetchToken, setCompletedInstallationsFetchToken] = useState<string | null>(null);
     const [loadedInstallations, setLoadedInstallations] = useState<{
         token: string;
         installations: GithubInstallationType[];
     } | null>(null);
     const token = session.data?.repoProbeAuthToken;
+    const isLoadingInstallations = session.status === "authenticated"
+        && !!token
+        && completedInstallationsFetchToken !== token;
     const installations = session.status === 'authenticated' && token && loadedInstallations && loadedInstallations.token === token
         ? loadedInstallations.installations
         : [];
@@ -40,6 +45,10 @@ export default function Dashboard() {
                 }
             } catch (error) {
                 console.log('Unable to load installations:', error);
+            } finally {
+                if (!cancelled) {
+                    setCompletedInstallationsFetchToken(token);
+                }
             }
         })();
         return () => {
@@ -49,7 +58,7 @@ export default function Dashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
-            <AppHeader />
+            <AppHeader currentPage="dashboard" />
             <main className="px-6 py-8 sm:px-10">
               <div className="mx-auto max-w-5xl">
                 <div className="mb-8">
@@ -63,7 +72,15 @@ export default function Dashboard() {
                             {installations.length} {installations.length === 1 ? "installation" : "installations"}
                         </span>
                     </div>
-                    {installations.length === 0 ? (
+                    {isLoadingInstallations ? (
+                        <div
+                            role="status"
+                            className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-12 text-sm text-slate-500"
+                        >
+                            <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-indigo-600" />
+                            Loading installations...
+                        </div>
+                    ) : installations.length === 0 ? (
                         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center">
                             <h3 className="font-semibold">No installations yet</h3>
                             <p className="mt-1 text-sm text-slate-500">GitHub installations will appear here once connected.</p>
