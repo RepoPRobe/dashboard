@@ -423,6 +423,47 @@ export default function Repository({
         }
     }
 
+    const handleReprocessFiles = async () => {
+        if(selectedPullRequest === null) {
+            toast.error('Please select a pull request to reprocess.');
+            return;
+        }
+        if(session.status !== 'authenticated' || !session.data?.repoProbeAuthToken) {
+            toast.error('Please authenticate to reprocess pull request files.');
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_SERVER_URL}/pullrequest/reprocess`,
+                {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${session.data.repoProbeAuthToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        installationId,
+                        repositoryId,
+                        pullRequestId: selectedPullRequest._id,
+                    }),
+                }
+            );
+            const parsed = await response.json();
+            if (parsed.success) {
+                toast.success(parsed.message);
+                await refreshAfterPRMutation();
+            } else {
+                toast.error('Unable to reprocess the pullrequest files');
+            }
+        } catch (error) {
+            console.log('Something went wrong while reprocessing PR files:', error);
+            toast.error('Unable to reprocess the pullrequest files');
+        } finally {
+            setSelectedPullRequest(null);
+        }
+    }
+
     const handleViewConflicts = async () => {
         try {
             const query = new URLSearchParams({ installationId, repositoryId, prNumber: String(selectedPullRequest?.prNumber) });
@@ -1135,6 +1176,7 @@ export default function Repository({
                                     href={selectedPullRequest.htmlUrl}
                                     target="_blank"
                                     rel="noreferrer"
+                                    title="Open this pull request on GitHub."
                                     className="inline-flex h-10 basis-1/2 items-center justify-center gap-2 border-r border-b border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
                                 >
                                     Open on GitHub
@@ -1143,22 +1185,78 @@ export default function Repository({
                                 {selectedPullRequest.state === 'open' && (
                                     <>
                                         {repositoryData?.permissions?.triage && !selectedPullRequest.isTracked && (
-                                            <Button size="sm" className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-indigo-50 px-2 text-center leading-tight text-indigo-800 hover:bg-indigo-100" onClick={handleTrackPR}>Track</Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-indigo-50 px-2 text-center leading-tight text-indigo-800 hover:bg-indigo-100"
+                                                title="Start tracking this pull request and process it in RepoProbe."
+                                                onClick={handleTrackPR}
+                                            >
+                                                Track
+                                            </Button>
                                         )}
                                         {repositoryData?.permissions?.triage && selectedPullRequest.isTracked && (
-                                            <Button size="sm" className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-slate-50 px-2 text-center leading-tight text-slate-700 hover:bg-slate-100" variant="outline" onClick={handleUntrackPR}>Untrack</Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-slate-50 px-2 text-center leading-tight text-slate-700 hover:bg-slate-100"
+                                                variant="outline"
+                                                title="Stop tracking this pull request in RepoProbe."
+                                                onClick={handleUntrackPR}
+                                            >
+                                                Untrack
+                                            </Button>
                                         )}
                                         {repositoryData?.permissions?.push && selectedPullRequest.isTracked && ['completed', 'error'].includes(selectedPullRequest.processingStatus) && (
-                                            <Button size="sm" className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-sky-50 px-2 text-center leading-tight text-sky-800 hover:bg-sky-100" variant="outline" onClick={handleSyncPR}>Sync</Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-sky-50 px-2 text-center leading-tight text-sky-800 hover:bg-sky-100"
+                                                variant="outline"
+                                                title="Refresh the pull request's latest commit and files, then update its conflict results."
+                                                onClick={handleSyncPR}
+                                            >
+                                                Sync
+                                            </Button>
                                         )}
                                         {repositoryData?.permissions?.push && selectedPullRequest.isTracked && ['completed', 'error'].includes(selectedPullRequest.processingStatus) && selectedPullRequest.conflictState !== 'conflicts_found' && (
-                                            <Button size="sm" className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-amber-100 px-2 text-center leading-tight text-amber-900 hover:bg-amber-200" onClick={handleScanPRConflicts}>Scan conflicts</Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-amber-100 px-2 text-center leading-tight text-amber-900 hover:bg-amber-200"
+                                                title="Run conflict detection again using the current pull request files."
+                                                onClick={handleScanPRConflicts}
+                                            >
+                                                Scan conflicts
+                                            </Button>
                                         )}
                                         {repositoryData?.permissions?.push && selectedPullRequest.conflictState === 'conflicts_found' && (
-                                            <Button size="sm" className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-violet-50 px-2 text-center leading-tight text-violet-800 hover:bg-violet-100" onClick={handleViewConflicts}>View conflicts</Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-violet-50 px-2 text-center leading-tight text-violet-800 hover:bg-violet-100"
+                                                title="Open the detected conflict details for this pull request."
+                                                onClick={handleViewConflicts}
+                                            >
+                                                View conflicts
+                                            </Button>
                                         )}
                                         {repositoryData?.permissions?.push && selectedPullRequest.processingStatus === 'error' && (
-                                            <Button size="sm" className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-red-50 px-2 text-center leading-tight text-red-800 hover:bg-red-100" variant="outline" onClick={handleRetryProcessing}>Retry processing</Button>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-red-50 px-2 text-center leading-tight text-red-800 hover:bg-red-100"
+                                                variant="outline"
+                                                title="Refreshes PR details and reruns the full PR processing workflow."
+                                                onClick={handleRetryProcessing}
+                                            >
+                                                Retry full PR processing
+                                            </Button>
+                                        )}
+                                        {repositoryData?.permissions?.push && selectedPullRequest.state === 'open' && selectedPullRequest.isTracked && (
+                                            <Button
+                                                size="sm"
+                                                className="h-10 min-w-0 shrink flex-[1_1_25%] cursor-pointer whitespace-normal rounded-none border-0 border-r border-b border-slate-200 bg-red-50 px-2 text-center leading-tight text-red-800 hover:bg-red-100"
+                                                variant="outline"
+                                                title="Refreshes the PR files and reruns conflict detection without rerunning full PR processing."
+                                                onClick={handleReprocessFiles}
+                                            >
+                                                Reprocess files
+                                            </Button>
                                         )}
                                     </>
                                 )}
