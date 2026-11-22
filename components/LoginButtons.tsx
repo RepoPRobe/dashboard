@@ -9,6 +9,7 @@ interface LoginButtonsProps {
   compact?: boolean;
   onClick?: () => void;
   variant?: "button" | "link";
+  inverse?: boolean;
 }
 
 export default function LoginButtons({
@@ -16,13 +17,16 @@ export default function LoginButtons({
   compact = false,
   onClick,
   variant = "button",
+  inverse = false,
 }: LoginButtonsProps) {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const buttonClassName =
     variant === "link"
       ? "inline-flex items-center rounded-md text-xs font-medium text-[#5145FF] transition-colors hover:text-[#4338E8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5145FF] focus-visible:ring-offset-2"
-      : `inline-flex ${compact ? "h-9 px-2.5" : "h-10 px-3"} items-center justify-center gap-2 rounded-lg border border-[#DCE4EF] bg-white text-xs font-medium text-[#344256] transition-colors hover:border-[#C4C5FF] hover:bg-[#F1F4F9] hover:text-[#5145FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5145FF] focus-visible:ring-offset-2`;
+      : inverse
+        ? `inline-flex ${compact ? "h-9 px-2.5" : "h-10 px-3"} items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/[0.08] text-xs font-medium text-white backdrop-blur transition-colors hover:border-white/25 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#24205A]`
+        : `inline-flex ${compact ? "h-9 px-2.5" : "h-10 px-3"} items-center justify-center gap-2 rounded-lg border border-[#DCE4EF] bg-white text-xs font-medium text-[#344256] transition-colors hover:border-[#C4C5FF] hover:bg-[#F1F4F9] hover:text-[#5145FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5145FF] focus-visible:ring-offset-2`;
 
   if (session?.user) {
     return (
@@ -35,29 +39,31 @@ export default function LoginButtons({
           className={
             variant === "link"
               ? "inline-flex items-center gap-1.5 rounded-md"
-              : `inline-flex ${compact ? "h-9 px-2" : "min-h-10 px-2.5 py-1"} items-center gap-1.5 rounded-lg border border-[#DCE4EF] bg-white shadow-sm shadow-slate-900/5 transition-colors hover:border-[#C4C5FF] hover:bg-[#F1F4F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5145FF] focus-visible:ring-offset-2`
+              : inverse
+                ? `inline-flex ${compact ? "h-9 px-2" : "min-h-10 px-2.5 py-1"} items-center gap-1.5 rounded-lg border border-white/15 bg-white/[0.08] text-white backdrop-blur transition-colors hover:border-white/25 hover:bg-white/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70`
+                : `inline-flex ${compact ? "h-9 px-2" : "min-h-10 px-2.5 py-1"} items-center gap-1.5 rounded-lg border border-[#DCE4EF] bg-white shadow-sm shadow-slate-900/5 transition-colors hover:border-[#C4C5FF] hover:bg-[#F1F4F9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5145FF] focus-visible:ring-offset-2`
           }
         >
           {session.user.image && (
             <img
               src={session.user.image}
               alt=""
-              className={`${compact ? "h-6 w-6" : "h-7 w-7"} rounded-full border border-[#DCE4EF] object-cover`}
+              className={`${compact ? "h-6 w-6" : "h-7 w-7"} rounded-full border ${inverse ? "border-white/20" : "border-[#DCE4EF]"} object-cover`}
             />
           )}
-          <span className={`${compact ? "max-w-32" : "max-w-36"} truncate text-xs text-[#526581]`}>
+          <span className={`${compact ? "max-w-32" : "max-w-36"} truncate text-xs ${inverse ? "text-indigo-100" : "text-[#526581]"}`}>
             {session.user.login}
           </span>
           <ChevronDown
             aria-hidden="true"
             size={compact ? 14 : 16}
-            className={`shrink-0 text-[#71829B] transition-transform ${menuOpen ? "rotate-180" : ""}`}
+            className={`shrink-0 ${inverse ? "text-indigo-200" : "text-[#71829B]"} transition-transform ${menuOpen ? "rotate-180" : ""}`}
           />
         </button>
         {menuOpen && (
           <div
             role="menu"
-            className="absolute left-1/2 z-50 mt-2 min-w-32 -translate-x-1/2 rounded-lg border border-[#DCE4EF] bg-white p-1 shadow-lg shadow-slate-900/10"
+            className={`absolute left-1/2 z-50 mt-2 min-w-32 -translate-x-1/2 rounded-lg border p-1 shadow-lg backdrop-blur-xl ${inverse ? "border-white/15 bg-[#171B46]/90 shadow-black/20" : "border-[#DCE4EF] bg-white shadow-slate-900/10"}`}
           >
             <button
               type="button"
@@ -67,7 +73,7 @@ export default function LoginButtons({
                 onClick?.();
                 void signOut({ callbackUrl: "/" });
               }}
-              className="w-full rounded-md px-3 py-2 text-left text-xs font-medium text-[#344256] transition-colors hover:bg-[#F1F4F9] hover:text-[#5145FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5145FF]"
+              className={`w-full rounded-md px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 ${inverse ? "text-indigo-100 hover:bg-white/10 hover:text-white focus-visible:ring-white/70" : "text-[#344256] hover:bg-[#F1F4F9] hover:text-[#5145FF] focus-visible:ring-[#5145FF]"}`}
             >
               Sign out
             </button>
