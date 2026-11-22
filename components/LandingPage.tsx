@@ -125,6 +125,17 @@ function DemoPlayer({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const playVideo = () => {
+    const player = videoRef.current;
+    if (!player) return;
+
+    if (player.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+      player.load();
+    }
+
+    void player.play();
+  };
+
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -210,7 +221,7 @@ function DemoPlayer({
               const player = videoRef.current;
               if (!player) return;
               if (isPlaying) player.pause();
-              else void player.play();
+              else playVideo();
             }}
             aria-label={isPlaying ? "Pause video" : "Play video"}
             className="absolute bottom-3 left-3 z-10 flex h-9 w-9 items-center justify-center rounded-md border border-white/15 bg-black/35 text-white/90 backdrop-blur-md transition hover:bg-black/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
@@ -235,7 +246,7 @@ function DemoPlayer({
               )}
               <button
                 type="button"
-                onClick={() => void videoRef.current?.play()}
+                onClick={playVideo}
                 aria-label={`Play ${label}`}
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-indigo-200/20 bg-[#5145FF]/25 text-white shadow-[0_0_24px_rgba(81,69,255,0.2)] backdrop-blur-md transition duration-200 hover:scale-105 hover:bg-[#5145FF]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-100"
               >
