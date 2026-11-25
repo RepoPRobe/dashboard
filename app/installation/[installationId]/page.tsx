@@ -5,7 +5,9 @@ import Link from "next/link";
 import AppHeader from "@/components/AppHeader";
 import ActivityList from "@/components/ActivityList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, LoaderCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import toast from "react-hot-toast";
+import { ArrowLeft, LoaderCircle, RefreshCw } from "lucide-react";
 
 type TrackedRepository = {
     _id: string;
@@ -32,6 +34,8 @@ export default function Installation({ params }: { params: Promise<{ installatio
         repositories: TrackedRepository[];
     } | null>(null);
     const [completedRepositoryRequestKey, setCompletedRepositoryRequestKey] = useState<string | null>(null);
+    const [repositoryRefreshKey, setRepositoryRefreshKey] = useState(0);
+    const [isRefreshingRepositories, setIsRefreshingRepositories] = useState(false);
     const token = session.data?.repoProbeAuthToken;
     const repositoryRequestKey = JSON.stringify([githubInstallationId, token]);
     const isLoadingRepositories = session.status === "authenticated"
@@ -69,12 +73,17 @@ export default function Installation({ params }: { params: Promise<{ installatio
                     });
                 } else if (!cancelled) {
                     console.log('Unable to load repositories:', parsed.error);
+                    toast.error("Unable to load repositories.");
                 }
             } catch (error) {
                 console.log('Unable to load repositories:', error);
+                if (!cancelled) {
+                    toast.error("Unable to load repositories.");
+                }
             } finally {
                 if (!cancelled) {
                     setCompletedRepositoryRequestKey(repositoryRequestKey);
+                    setIsRefreshingRepositories(false);
                 }
             }
         })();
@@ -82,7 +91,7 @@ export default function Installation({ params }: { params: Promise<{ installatio
         return () => {
             cancelled = true;
         };
-    }, [githubInstallationId, repositoryRequestKey, session.status, session.data?.repoProbeAuthToken]);
+    }, [githubInstallationId, repositoryRequestKey, session.status, session.data?.repoProbeAuthToken, repositoryRefreshKey]);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -111,9 +120,27 @@ export default function Installation({ params }: { params: Promise<{ installatio
                         <div aria-labelledby="repositories-heading">
                             <div className="mb-4 flex items-center justify-between">
                                 <h2 id="repositories-heading" className="text-xl font-semibold">Repositories</h2>
-                                <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
-                                    {trackedRepositories.length} {trackedRepositories.length === 1 ? "repository" : "repositories"}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
+                                        {trackedRepositories.length} {trackedRepositories.length === 1 ? "repository" : "repositories"}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon-sm"
+                                        aria-label="Refresh repositories"
+                                        title="Refresh repositories"
+                                        disabled={isRefreshingRepositories || isLoadingRepositories || session.status !== "authenticated" || !token}
+                                        onClick={() => {
+                                            setIsRefreshingRepositories(true);
+                                            setRepositoryRefreshKey((current) => current + 1);
+                                        }}
+                                    >
+                                        {isRefreshingRepositories
+                                            ? <LoaderCircle aria-hidden="true" className="animate-spin" />
+                                            : <RefreshCw aria-hidden="true" />}
+                                    </Button>
+                                </div>
                             </div>
 
                             {isLoadingRepositories ? (
