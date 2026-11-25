@@ -5,7 +5,8 @@ import { useEffect, useState } from "react"
 import { GithubInstallationType } from "@/types";
 import toast from "react-hot-toast";
 import AppHeader from "@/components/AppHeader";
-import { LoaderCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 
 export default function Dashboard() {
     const session = useSession();
@@ -14,6 +15,8 @@ export default function Dashboard() {
         token: string;
         installations: GithubInstallationType[];
     } | null>(null);
+    const [installationsRefreshKey, setInstallationsRefreshKey] = useState(0);
+    const [isRefreshingInstallations, setIsRefreshingInstallations] = useState(false);
     const token = session.data?.repoProbeAuthToken;
     const isLoadingInstallations = session.status === "authenticated"
         && !!token
@@ -45,16 +48,20 @@ export default function Dashboard() {
                 }
             } catch (error) {
                 console.log('Unable to load installations:', error);
+                if (!cancelled) {
+                    toast.error("Unable to load installations.");
+                }
             } finally {
                 if (!cancelled) {
                     setCompletedInstallationsFetchToken(token);
+                    setIsRefreshingInstallations(false);
                 }
             }
         })();
         return () => {
             cancelled = true;
         }
-    }, [session.status, session.data?.repoProbeAuthToken]);
+    }, [session.status, session.data?.repoProbeAuthToken, installationsRefreshKey]);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -68,9 +75,27 @@ export default function Dashboard() {
                 <div aria-labelledby="installations-heading">
                     <div className="mb-4 flex items-center justify-between">
                         <h2 id="installations-heading" className="text-xl font-semibold">Installations</h2>
-                        <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
-                            {installations.length} {installations.length === 1 ? "installation" : "installations"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
+                                {installations.length} {installations.length === 1 ? "installation" : "installations"}
+                            </span>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                aria-label="Refresh installations"
+                                title="Refresh installations"
+                                disabled={isRefreshingInstallations || isLoadingInstallations || session.status !== "authenticated" || !token}
+                                onClick={() => {
+                                    setIsRefreshingInstallations(true);
+                                    setInstallationsRefreshKey((current) => current + 1);
+                                }}
+                            >
+                                {isRefreshingInstallations
+                                    ? <LoaderCircle aria-hidden="true" className="animate-spin" />
+                                    : <RefreshCw aria-hidden="true" />}
+                            </Button>
+                        </div>
                     </div>
                     {isLoadingInstallations ? (
                         <div

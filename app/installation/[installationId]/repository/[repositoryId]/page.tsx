@@ -19,7 +19,7 @@ import PRsConflicts from "@/components/PRsConflict";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ActivityList from "@/components/ActivityList";
 import { Banner } from "@/components/ui/banner";
-import { ArrowLeft, CalendarClock, ChevronDown, ExternalLink, LoaderCircle, Search } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronDown, ExternalLink, LoaderCircle, RefreshCw, Search } from "lucide-react";
 
 type UserType = {
     id: string;
@@ -61,7 +61,6 @@ type PullRequestType = {
     isTracked: boolean;
     processingStatus: 'pending' | 'processing' | 'completed' | 'error';
     conflictState: 'no_conflicts' | 'conflicts_found' | 'unknown';
-    deletedAt?: Date | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -135,6 +134,7 @@ export default function Repository({
         key: string;
         message: string;
     } | null>(null);
+    const [isRefreshingRepository, setIsRefreshingRepository] = useState(false);
     const [pullRequestSearch, setPullRequestSearch] = useState("");
     const [pullRequestSearchField, setPullRequestSearchField] = useState<PullRequestSearchField>("prNumber");
     const [selectedPullRequest, setSelectedPullRequest] = useState<PullRequestType | null>(null);
@@ -176,6 +176,25 @@ export default function Repository({
         } catch (error) {
             console.error("Unable to refresh repository data after pull request action:", error);
             toast.error("Action completed, but repository data could not be refreshed.");
+        }
+    };
+
+    const handleRefreshRepository = async () => {
+        if (!token) {
+            toast.error("Authentication token is unavailable.");
+            return;
+        }
+
+        setIsRefreshingRepository(true);
+        try {
+            const repository = await fetchRepositoryData(installationId, repositoryId, token);
+            setRepositoryResult({ key: repositoryRequestKey, data: repository });
+            setRepositoryError(null);
+        } catch (error) {
+            console.error("Unable to refresh repository data:", error);
+            toast.error(error instanceof Error ? error.message : "Unable to refresh repository data.");
+        } finally {
+            setIsRefreshingRepository(false);
         }
     };
 
@@ -563,7 +582,7 @@ export default function Repository({
     }
 
     const repository = repositoryData?.repository;
-    const pullRequests = repositoryData?.stats.totalPRsInRepoPRobe ?? [];
+    const pullRequests = (repositoryData?.stats.totalPRsInRepoPRobe ?? []).filter((pr) => pr.isTracked);
     const conflictingPRIds = new Set(repositoryData?.stats.conflictingPRIds ?? []);
     const conflictCount = pullRequests.filter((pr) => conflictingPRIds.has(pr._id)).length;
     const openCount = pullRequests.filter((pr) => pr.state === "open").length;
@@ -684,9 +703,24 @@ export default function Repository({
                                             <h2 id="pull-requests-heading" className="text-xl font-semibold">
                                                 Tracked pull requests
                                             </h2>
-                                            <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
-                                                {pullRequests.length} {pullRequests.length === 1 ? "pull request" : "pull requests"}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
+                                                    {pullRequests.length} {pullRequests.length === 1 ? "pull request" : "pull requests"}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    aria-label="Refresh tracked pull requests"
+                                                    title="Refresh tracked pull requests"
+                                                    disabled={isRefreshingRepository || isLoading}
+                                                    onClick={() => void handleRefreshRepository()}
+                                                >
+                                                    {isRefreshingRepository
+                                                        ? <LoaderCircle aria-hidden="true" className="animate-spin" />
+                                                        : <RefreshCw aria-hidden="true" />}
+                                                </Button>
+                                            </div>
                                         </div>
 
                                         <div className="mb-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -880,9 +914,24 @@ export default function Repository({
                                                     Open pull requests in this repository that RepoProbe is not tracking yet.
                                                 </p>
                                             </div>
-                                            <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
-                                                {untrackedOpenPRs.length} {untrackedOpenPRs.length === 1 ? "pull request" : "pull requests"}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
+                                                    {untrackedOpenPRs.length} {untrackedOpenPRs.length === 1 ? "pull request" : "pull requests"}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="icon-sm"
+                                                    aria-label="Refresh untracked pull requests"
+                                                    title="Refresh untracked pull requests"
+                                                    disabled={isLoadingUntrackedOpenPRs}
+                                                    onClick={() => void fetchUntrackedOpenPRs()}
+                                                >
+                                                    {isLoadingUntrackedOpenPRs
+                                                        ? <LoaderCircle aria-hidden="true" className="animate-spin" />
+                                                        : <RefreshCw aria-hidden="true" />}
+                                                </Button>
+                                            </div>
                                         </div>
 
                                         {!repositoryData.permissions.triage && (

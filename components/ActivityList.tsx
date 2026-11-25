@@ -2,6 +2,8 @@ import { formatActivityDate } from "@/lib/date";
 import ActivityCollapsible from "./ui/activity-collapsible";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { Button } from "@/components/ui/button";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 
 export type ActivityLog = {
     _id: string;
@@ -100,6 +102,8 @@ export default function ActivityList({
         hasMore?: boolean;
         error?: string;
     } | null>(null);
+    const [activityRefreshKey, setActivityRefreshKey] = useState(0);
+    const [isRefreshingActivity, setIsRefreshingActivity] = useState(false);
 
     const currentActivityResult = session.status === 'authenticated' && token && activityResult
         && activityResult.installationId === githubInstallationId && activityResult.token === token
@@ -160,13 +164,17 @@ export default function ActivityList({
                         error: error instanceof Error ? error.message : "Unable to load activity logs.",
                     });
                 }
+            } finally {
+                if (!cancelled) {
+                    setIsRefreshingActivity(false);
+                }
             }
         })();
 
         return () => {
             cancelled = true;
         };
-    }, [githubInstallationId, repositoryId, pullRequestId, variant, session.status, session.data?.repoProbeAuthToken]);
+    }, [githubInstallationId, repositoryId, pullRequestId, variant, session.status, session.data?.repoProbeAuthToken, activityRefreshKey]);
 
     return (
         <section aria-label={title}>
@@ -175,11 +183,29 @@ export default function ActivityList({
                     <h2 className={`font-semibold ${isPullRequestActivity ? "text-lg" : "text-xl"}`}>{title}</h2>
                     <p className="mt-1 text-sm text-slate-500">{description}</p>
                 </div>
-                {currentActivityResult?.logs && (
-                    <span className={`shrink-0 rounded-full bg-indigo-100 font-medium text-indigo-700 ${isPullRequestActivity ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"}`}>
-                        {currentActivityResult.logs.length} {currentActivityResult.logs.length === 1 ? "event" : "events"}
-                    </span>
-                )}
+                <div className="flex shrink-0 items-center gap-2">
+                    {currentActivityResult?.logs && (
+                        <span className={`rounded-full bg-indigo-100 font-medium text-indigo-700 ${isPullRequestActivity ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-sm"}`}>
+                            {currentActivityResult.logs.length} {currentActivityResult.logs.length === 1 ? "event" : "events"}
+                        </span>
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="icon-sm"
+                        aria-label={`Refresh ${title.toLocaleLowerCase()}`}
+                        title={`Refresh ${title.toLocaleLowerCase()}`}
+                        disabled={isRefreshingActivity || activityLoading || session.status !== "authenticated" || !token}
+                        onClick={() => {
+                            setIsRefreshingActivity(true);
+                            setActivityRefreshKey((current) => current + 1);
+                        }}
+                    >
+                        {isRefreshingActivity
+                            ? <LoaderCircle aria-hidden="true" className="animate-spin" />
+                            : <RefreshCw aria-hidden="true" />}
+                    </Button>
+                </div>
             </div>
 
             {currentActivityResult?.hasMore && (

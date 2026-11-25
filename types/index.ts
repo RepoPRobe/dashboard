@@ -18,7 +18,6 @@ export type GithubInstallationType = {
     installedBy?: UserType | null;
     suspendedAt?: Date | null;
     installedOn?: Date | null;
-    deletedAt?: Date | null;
     lastUpdatedAt?: Date | null;
     repositorySelection: "all" | "selected";
     createdAt: Date;
